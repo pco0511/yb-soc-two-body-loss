@@ -42,11 +42,12 @@ metadata = {
         # "gamma":0.1,
     },
     "unfixed": {
-        "lengths": [[nx,] for nx in range(4, 9)],
-        "n_particle": list(np.linspace(1, 8, 8, dtype=np.int32)),
+        "lengths": [[nx,] for nx in range(1, 9)],
+        "n_particle": list(range(1, 13)),
         "gamma": list(np.linspace(-0.5, 0.5, 11)),
     },
 }
+
 
 
 os.makedirs(eigenvector_path, exist_ok=True)
@@ -58,13 +59,12 @@ with open(metadata_path, "wb") as f:
     
 data_len = functools.reduce(operator.mul, [len(p) for p in metadata["unfixed"].values()], 1)
 
-min_E_i_sus = np.empty((data_len,))
-max_E_i_sus = np.empty((data_len,))
-min_E_r_sus = np.empty((data_len,))
+min_E_i_sus = np.zeros((data_len,))
+max_E_i_sus = np.zeros((data_len,))
+min_E_r_sus = np.zeros((data_len,))
 
 for idx, unfixed_params in tqdm.tqdm(enumerate(itertools.product(*metadata["unfixed"].values())), total=data_len):
-    # if idx < 415:
-    #     continue
+    
     keys = metadata["unfixed"].keys()
     unfixed_params = dict(zip(keys, unfixed_params))
     system = YbSOC2bodyLoss(
@@ -72,6 +72,15 @@ for idx, unfixed_params in tqdm.tqdm(enumerate(itertools.product(*metadata["unfi
         **unfixed_params,
         array_type='jax'
     )
+    MEMORY_TRESHOLD = 2684354560
+    if system.dense_representation_size > MEMORY_TRESHOLD \
+        or system.num_single_particle_states < system.n_particle:
+        min_E_r_sus[idx] = -1
+        min_E_i_sus[idx] = -1
+        max_E_i_sus[idx] = -1
+        continue
+    
+    
     hamiltonian = system.dense_hamiltonian()
     eigenvalues, eigenvectors = jnp.linalg.eig(hamiltonian)
     # save_data
