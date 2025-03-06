@@ -342,6 +342,7 @@ class YbSOCSystem:
                     new_multi_particle_state[idx1] = (momentum_1_idx_f, 1)
                     new_multi_particle_state[idx2] = (momentum_2_idx_f, -1)
                     new_multi_particle_state, parity = sorted_multi_particle_state(new_multi_particle_state)
+                    # print(f"({momentum_1_idx_i}, {momentum_2_idx_i}) -> ({momentum_1_idx_f}, {momentum_2_idx_f})", "(x)" if parity == 0 else "")
                     if parity == 0:
                         continue
                     new_idx = self.state_to_index_map_multi[new_multi_particle_state]
@@ -375,9 +376,9 @@ class YbSOCSystem:
     def momentum_sp_expected_numbers_vectorized(self, states):
         num_op_diags = self.momentum_sp_num_op_diags()
         probs = np.abs(states) ** 2
-        expected_numbers = np.einsum('ij,...j->i...',num_op_diags, probs)
-        nums_spin_up = expected_numbers[0::2, ...]
-        nums_spin_down = expected_numbers[1::2, ...]
+        expected_numbers = np.einsum('ij,...j->...i',num_op_diags, probs)
+        nums_spin_up = expected_numbers[..., 0::2]
+        nums_spin_down = expected_numbers[..., 1::2]
         return self.prepare_return_arr(nums_spin_up), self.prepare_return_arr(nums_spin_down)
 
     # correlation functions
@@ -442,7 +443,21 @@ class YbSOCSystem:
         corr_op *= ((2 * np.pi) ** self.dim) / (self.num_sites ** 2)
         
         return self.prepare_return_arr(corr_op)
+    
+    def get_momentum_eigenstate(self, multi_particle_state):
+        if len(multi_particle_state) != self.n_particle:
+            raise ValueError(f"number of the particle setted in the system({self.n_particle}) and given({len(multi_particle_state)}) are mismatched.")
+        
+        new_multi_particle_state, parity = sorted_multi_particle_state(multi_particle_state)
 
+        if parity == 0:
+            raise ValueError("Pauli Exclusion principle is violated.")
+        
+        index = self.state_to_index_map_multi[new_multi_particle_state]
+        state_vector = np.zeros((self.space_dim,))
+        state_vector[index] = parity
+        return state_vector
+        
  
 class YbSOC2bodyLoss(YbSOCSystem):
     def __init__(
