@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 from ybsoc import *
 
-simulation_name = "hubbard"
+simulation_name = "hubbard-12-4"
 data_dir = "/home/pco0511/yb-soc-two-body-loss/data"
 root_path = os.path.join(data_dir, simulation_name)
 
@@ -32,7 +32,7 @@ mics_path = os.path.join(root_path, "miscellaneous")
 metadata = {
     "fixed": {
         "d":1,
-        "lengths":[10,],
+        "lengths":[12,],
         "n_particle":4,
         "hbar":1,
         "q":0.03,
@@ -42,7 +42,7 @@ metadata = {
         # "gamma":0.1,
     },
     "unfixed": {
-        "U": list(np.linspace(-1, 1, 101)),
+        "U": list(np.linspace(-3, 3, 76)),
     },
 }
 

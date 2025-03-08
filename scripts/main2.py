@@ -42,8 +42,8 @@ metadata = {
         # "gamma":0.1,
     },
     "unfixed": {
-        "lengths": [[nx,] for nx in range(1, 9)],
-        "n_particle": list(range(1, 13)),
+        "lengths": [[nx,] for nx in range(1, 13)],
+        "n_particle": list(range(1, 8)),
         "gamma": list(np.linspace(-0.5, 0.5, 11)),
     },
 }

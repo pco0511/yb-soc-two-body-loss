@@ -32,7 +32,7 @@ mics_path = os.path.join(root_path, "miscellaneous")
 metadata = {
     "fixed": {
         "d":1,
-        "lengths":[10,],
+        "lengths":[12,],
         "n_particle":4,
         "hbar":1,
         "q":0.03,
