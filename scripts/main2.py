@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 from ybsoc import *
 
-simulation_name = "scale"
+simulation_name = "scale-2"
 data_dir = "/home/pco0511/yb-soc-two-body-loss/data"
 root_path = os.path.join(data_dir, simulation_name)
 
@@ -43,7 +43,7 @@ metadata = {
     },
     "unfixed": {
         "lengths": [[nx,] for nx in range(1, 13)],
-        "n_particle": list(range(1, 8)),
+        "n_particle": list(range(1, 9)),
         "gamma": list(np.linspace(-0.5, 0.5, 11)),
     },
 }

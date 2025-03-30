@@ -101,7 +101,7 @@ def sorted_multi_particle_state(multi_particle_state):
 
 
 
-class LatticeSystem:
+class BoseHubbardSystem:
     def __init__(
         self,
         d: float,
@@ -125,8 +125,8 @@ class LatticeSystem:
         self._k0 = 2 * jnp.pi / (d * jnp.array(lengths))
 
         self._sites_multi_indices = lattice.multi_indices(lengths)
-        self._single_particle_states = list(itertools.product(self._sites_multi_indices, [1, -1]))
-        self._multi_particle_states = list(itertools.combinations(self._single_particle_states, n_particle))
+        self._single_particle_states = list(itertools.product(self._sites_multi_indices, [(-self._S + i) for i in range(2 * self._S + 1)]))
+        self._multi_particle_states = list(itertools.combinations_with_replacement(self._single_particle_states, n_particle))
 
         self._num_sites = len(self._sites_multi_indices)
         self._num_single_particle_states = len(self._single_particle_states)
@@ -234,39 +234,7 @@ class LatticeSystem:
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def kinetic(self, k):
-        t = jnp.array([
-            [(self.hbar ** 2) * jnp.sum((k - self.q) ** 2) / (2 * self.m_Yb) + self.delta / 2, self.omega_R / 2],
-            [self.omega_R / 2, (self.hbar ** 2) * jnp.sum((k + self.q) ** 2) / (2 * self.m_Yb) - self.delta / 2]
-        ])
-        return jax.device_put(t, device=jax.devices("cpu")[0])
-
-    @functools.partial(jax.jit, static_argnums=(0,))
-    def trace_e(self, k):
-        return ((self.hbar ** 2) / (2 * self.m_Yb)) * ((k - self.q) ** 2 + (k + self.q) ** 2)
-
-    @functools.partial(jax.jit, static_argnums=(0,))
-    def delta_e(self, k):
-        return ((self.hbar ** 2) / (2 * self.m_Yb)) * ((k - self.q) ** 2 - (k + self.q) ** 2) + self.delta
-
-    @functools.partial(jax.jit, static_argnums=(0,))
-    def e1(self, k):
-        return (self.trace_e(k) + jnp.sqrt(self.delta_e(k) ** 2 + self.omega_R ** 2)) / 2
-
-    @functools.partial(jax.jit, static_argnums=(0,))
-    def e2(self, k):
-        return (self.trace_e(k) - jnp.sqrt(self.delta_e(k) ** 2 + self.omega_R ** 2)) / 2
-
-    @functools.partial(jax.jit, static_argnums=(0,))
-    def theta(self, k):
-        return (1 / 2) * jnp.arctan(self.omega_R / self.delta_e(k))
-
-    @functools.partial(jax.jit, static_argnums=(0,))
-    def alpha(self, k):
-        return jnp.cos(self.theta(k))
-
-    @functools.partial(jax.jit, static_argnums=(0,))
-    def beta(self, k):
-        return jnp.sin(self.theta(k))
+        return (self.hbar ** 2) * jnp.sum(k ** 2) / (2 * self.m)
 
     def prepare_return_arr(self, arr: np.typing.NDArray):
         match self._array_type:
@@ -285,31 +253,17 @@ class LatticeSystem:
     ):
         hamiltonian = np.zeros((self.space_dim, self.space_dim), np.complex128)
 
+        # kinetic term
         for state_index, multi_particle_state \
         in enumerate(tqdm.tqdm(self.multi_particle_states)) \
         if display_progress \
         else enumerate(self.multi_particle_states):
-            iterator = iter(range(self.n_particle))
-            
-            for i in iterator:
+            E = 0
+            for i in range(self.n_particle):
                 momentum_idx, spin = multi_particle_state[i]
                 momentum = self.momentums[self.site_to_index_map[momentum_idx]]
-                t = np.array(self.kinetic(momentum))
-                if (i + 1 < self.n_particle) and (momentum_idx == multi_particle_state[i + 1][0]):
-                    # state contain c_up(k), c_down(k) both
-                    hamiltonian[state_index, state_index] += t.trace()
-                    next(iterator, None)
-                else:
-                    # state contain c_up(k) xor c_down(k)
-                    spin_changed = list(multi_particle_state)   # copy state
-                    spin_changed[i] = (momentum_idx, -spin)     # reflect spin
-                    spin_changed_tuple = tuple(spin_changed)
-                    spin_changed_index = self.state_to_index_map_multi[spin_changed_tuple]
-                    
-                    spin_idx = (1 - spin) // 2  # \sigma = 1 -> 0, \sigma -1 -> 1
-
-                    hamiltonian[state_index, state_index] += t[spin_idx, spin_idx]
-                    hamiltonian[spin_changed_index, state_index] += t[1 - spin_idx, spin_idx]
+                E += self.kinetic(momentum)
+            hamiltonian[state_index, state_index] += E
 
         # interaction term
         for state_index, multi_particle_state \
