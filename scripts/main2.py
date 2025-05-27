@@ -5,6 +5,7 @@ import itertools
 import functools
 import operator
 import pickle
+import json
 from pprint import pprint
 
 os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
@@ -20,14 +21,18 @@ import matplotlib.pyplot as plt
 
 from ybsoc import *
 
-simulation_name = "scale-2"
+save_eigenvectors = False
+
+simulation_name = "scale-1"
 data_dir = "/home/pco0511/yb-soc-two-body-loss/data"
 root_path = os.path.join(data_dir, simulation_name)
 
-metadata_path = os.path.join(root_path, "metadata.pkl")
-eigenvector_path = os.path.join(root_path, "eigenvectors")
+metadata_path = os.path.join(root_path, "metadata.json")
+lefteigenvector_path = os.path.join(root_path, "lefteigenvectors")
+righteigenvector_path = os.path.join(root_path, "righteigenvectors")
 eigenvalue_path = os.path.join(root_path, "eigenvalues")
 mics_path = os.path.join(root_path, "miscellaneous")
+log_path = os.path.join(root_path, "log")
 
 metadata = {
     "fixed": {
@@ -44,18 +49,18 @@ metadata = {
     "unfixed": {
         "lengths": [[nx,] for nx in range(1, 13)],
         "n_particle": list(range(1, 9)),
-        "gamma": list(np.linspace(-0.5, 0.5, 11)),
+        "gamma": list(np.linspace(0.1, 0.3, 3)),
     },
 }
 
-
-
-os.makedirs(eigenvector_path, exist_ok=True)
+if save_eigenvectors:
+    os.makedirs(lefteigenvector_path, exist_ok=True)
+    os.makedirs(righteigenvector_path, exist_ok=True)
 os.makedirs(eigenvalue_path, exist_ok=True)
 os.makedirs(mics_path, exist_ok=True)
 
-with open(metadata_path, "wb") as f:
-    pickle.dump(metadata, f)
+with open(metadata_path, "w+") as f:
+    json.dump(metadata, f, indent=4)
     
 data_len = functools.reduce(operator.mul, [len(p) for p in metadata["unfixed"].values()], 1)
 
@@ -64,15 +69,16 @@ max_E_i_sus = np.zeros((data_len,))
 min_E_r_sus = np.zeros((data_len,))
 
 for idx, unfixed_params in tqdm.tqdm(enumerate(itertools.product(*metadata["unfixed"].values())), total=data_len):
-    
     keys = metadata["unfixed"].keys()
     unfixed_params = dict(zip(keys, unfixed_params))
+    
+    # make a system
     system = YbSOC2bodyLoss(
         **metadata["fixed"],
         **unfixed_params,
         array_type='jax'
     )
-    MEMORY_TRESHOLD = 2684354560
+    MEMORY_TRESHOLD = 1073741824
     if system.dense_representation_size > MEMORY_TRESHOLD \
         or system.num_single_particle_states < system.n_particle:
         min_E_r_sus[idx] = -1
@@ -80,12 +86,22 @@ for idx, unfixed_params in tqdm.tqdm(enumerate(itertools.product(*metadata["unfi
         max_E_i_sus[idx] = -1
         continue
     
-    
-    hamiltonian = system.dense_hamiltonian()
-    eigenvalues, eigenvectors = jnp.linalg.eig(hamiltonian)
+    # construct dense matrix representation of hamiltonian
+    hamiltonian = system.dense_hamiltonian() 
+     
+    # diagonalize and construct biorthogonal basis
+    eigenvalues, lefteigenvectors, righteigenvectors = jax.lax.linalg.eig(hamiltonian)
+    norm_factor = jnp.einsum('ij,ij->j', lefteigenvectors.conj(), righteigenvectors)
+    righteigenvectors /= norm_factor
+    # lefteigenvectors[: i], righteigenvectors[: j] are biorthogonal.
+    if not jnp.allclose(jnp.einsum('ki,kj->ij', lefteigenvectors.conj(), righteigenvectors), jnp.eye(system.space_dim)):
+        print("something is wrong")
+        
     # save_data
     np.save(os.path.join(eigenvalue_path, f"{idx}.npy"), np.array(eigenvalues))
-    np.save(os.path.join(eigenvector_path, f"{idx}.npy"), np.array(eigenvectors))
+    if save_eigenvectors:
+        np.save(os.path.join(lefteigenvector_path, f"{idx}.npy"), np.array(lefteigenvectors))
+        np.save(os.path.join(righteigenvector_path, f"{idx}.npy"), np.array(righteigenvectors))
     
     E_r = jnp.real(eigenvalues)
     E_i = jnp.imag(eigenvalues)
@@ -96,16 +112,18 @@ for idx, unfixed_params in tqdm.tqdm(enumerate(itertools.product(*metadata["unfi
 
     indices = jnp.array([min_E_r_idx, min_E_i_idx, max_E_i_idx])
     
-    reduced_eigenvectors = eigenvectors[:, indices]
+    reduced_lefteigenvectors = lefteigenvectors[:, indices]
+    reduced_righteigenvectors = righteigenvectors[:, indices]
     
     suseptibility_matrix = system.pair_susceptibility_matrix()
-    suseptibility = jnp.einsum('ji,jk,ki->i', reduced_eigenvectors.conj(), suseptibility_matrix, reduced_eigenvectors)
+    suseptibility = jnp.einsum('ji,jk,ki->i', reduced_lefteigenvectors.conj(), suseptibility_matrix, reduced_righteigenvectors)
     
     min_E_r_sus[idx] = suseptibility[0].astype(jnp.float64)
     min_E_i_sus[idx] = suseptibility[1].astype(jnp.float64)
     max_E_i_sus[idx] = suseptibility[2].astype(jnp.float64)
     
-    del system, hamiltonian, eigenvalues, eigenvectors, reduced_eigenvectors, suseptibility_matrix, suseptibility, E_r, E_i
+    # free resources
+    del system, hamiltonian, eigenvalues, lefteigenvectors, righteigenvectors, reduced_lefteigenvectors, reduced_righteigenvectors, suseptibility_matrix, suseptibility, E_r, E_i
     gc.collect()
     
 np.save(os.path.join(mics_path, "min_E_i_sus.npy"), min_E_i_sus)

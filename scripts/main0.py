@@ -47,7 +47,7 @@ metadata = {
         # "gamma":0.1,
     },
     "unfixed": {
-        "gamma": list(np.linspace(-3, 3, 76)),
+        "gamma": list(np.linspace(-5, 5, 81)),
     },
 }
 
@@ -58,8 +58,11 @@ if save_eigenvectors:
 os.makedirs(eigenvalue_path, exist_ok=True)
 os.makedirs(mics_path, exist_ok=True)
 
+with open(metadata_path, "w+") as f:
+    json.dump(metadata, f, indent=4)
+    
 data_len = functools.reduce(operator.mul, [len(p) for p in metadata["unfixed"].values()], 1)
-
+d
 min_E_i_sus = np.empty((data_len,))
 max_E_i_sus = np.empty((data_len,))
 min_E_r_sus = np.empty((data_len,))
@@ -76,14 +79,15 @@ for idx, unfixed_params in tqdm.tqdm(enumerate(itertools.product(*metadata["unfi
     )
     
     # construct dense matrix representation of hamiltonian
-    hamiltonian = system.dense_hamiltonian()
+    hamiltonian = system.dense_hamiltonian()    
     
     # diagonalize and construct biorthogonal basis
     eigenvalues, lefteigenvectors, righteigenvectors = jax.lax.linalg.eig(hamiltonian)
     norm_factor = jnp.einsum('ij,ij->j', lefteigenvectors.conj(), righteigenvectors)
     righteigenvectors /= norm_factor
     # lefteigenvectors[: i], righteigenvectors[: j] are biorthogonal.
-    # assert jnp.allclose(jnp.einsum('ki,kj->ij', lefteigenvectors.conj(), righteigenvectors), jnp.eyes(system.dim))
+    if not jnp.allclose(jnp.einsum('ki,kj->ij', lefteigenvectors.conj(), righteigenvectors), jnp.eye(system.space_dim)):
+        print("something is wrong")
     
     # save_data
     np.save(os.path.join(eigenvalue_path, f"{idx}.npy"), np.array(eigenvalues))
@@ -113,9 +117,6 @@ for idx, unfixed_params in tqdm.tqdm(enumerate(itertools.product(*metadata["unfi
     # free resources
     del system, hamiltonian, eigenvalues, lefteigenvectors, righteigenvectors, reduced_lefteigenvectors, reduced_righteigenvectors, suseptibility_matrix, suseptibility, E_r, E_i
     gc.collect()
-
-with open(metadata_path, "w+") as f:
-    json.dump(metadata, f, indent=4)
 
 np.save(os.path.join(mics_path, "min_E_i_sus.npy"), min_E_i_sus)
 np.save(os.path.join(mics_path, "max_E_i_sus.npy"), max_E_i_sus)
