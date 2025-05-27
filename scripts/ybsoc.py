@@ -240,6 +240,9 @@ class YbSOCSystem:
     def momentums(self):
         return self._momentums
 
+    @property
+    def dense_representation_size(self):
+        return (len(self.multi_particle_states) ** 2) * 16
         
     def print_info(self):
         print_multi_particle_states_info(self.multi_particle_states)
