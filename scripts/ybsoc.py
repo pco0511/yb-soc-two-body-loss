@@ -291,7 +291,83 @@ class YbSOCSystem:
             case "torch":
                 return torch.tensor(arr)
 
+    def sparse_hamiltonian(
+        self,
+        display_progress: bool = False
+    ):
+        space_dim          = self.space_dim
+        momentums          = self.momentums
+        site_to_index_map  = self.site_to_index_map
+        state_to_index_map = self.state_to_index_map_multi
+        kinetic_fn         = self.kinetic
+        multi_states       = self.multi_particle_states
+        n_particle         = self.n_particle
+        num_sites_inv      = 1.0 / self.num_sites
+        _U                 = self._U
+        add_idx            = lattice.add_multi_indices
+        sub_idx            = lattice.subtract_multi_indices
+        sites_multi_idx    = self.sites_multi_indices
 
+        # ── sparse matrix 초기화 (lil: 삽입 효율 ↑) ───────────────
+        H = scipy.sparse.lil_matrix((space_dim, space_dim), dtype=np.complex128)
+
+        # ── kinetic term ─────────────────────────────────────────
+        kinetic_cache = {}
+        enum_iter = enumerate(
+            tqdm.tqdm(multi_states) if display_progress else multi_states
+        )
+
+        for state_idx, state in enum_iter:
+            i_iter = iter(range(n_particle))
+            for i in i_iter:
+                k_idx, spin = state[i]
+                t = kinetic_cache.setdefault(
+                    k_idx,
+                    np.asarray(kinetic_fn(momentums[site_to_index_map[k_idx]]),
+                            dtype=np.complex128)
+                )
+
+                if (i + 1 < n_particle) and (k_idx == state[i + 1][0]):
+                    # c_up(k)·c_down(k) 둘 다 존재
+                    H[state_idx, state_idx] += t.trace()
+                    next(i_iter, None)          # 한 번 더 건너뛰기
+                else:
+                    # c_up(k) XOR c_down(k)
+                    spin_changed = list(state)
+                    spin_changed[i] = (k_idx, -spin)
+                    spin_changed_idx = state_to_index_map[tuple(spin_changed)]
+
+                    s = (1 - spin) // 2  # spin=+1 → 0, spin=-1 → 1
+
+                    H[state_idx, state_idx]         += t[s,  s]
+                    H[spin_changed_idx, state_idx]  += t[1-s, s]
+
+        # ── interaction term ─────────────────────────────────────
+        enum_iter = enumerate(
+            tqdm.tqdm(multi_states) if display_progress else multi_states
+        )
+
+        for state_idx, state in enum_iter:
+            spin_up   = [(i, s[0]) for i, s in enumerate(state) if s[1] ==  1]
+            spin_down = [(i, s[0]) for i, s in enumerate(state) if s[1] == -1]
+
+            for (idx1, k1_i), (idx2, k2_i) in itertools.product(spin_up, spin_down):
+                for q in sites_multi_idx:
+                    k1_f = add_idx(k1_i, q,  self.lengths)
+                    k2_f = sub_idx(k2_i, q,  self.lengths)
+
+                    new_state = list(state)
+                    new_state[idx1] = (k1_f,  1)
+                    new_state[idx2] = (k2_f, -1)
+                    new_state, parity = sorted_multi_particle_state(new_state)
+                    if parity == 0:
+                        continue
+
+                    new_idx = state_to_index_map[new_state]
+                    H[new_idx, state_idx] += parity * (-_U) * num_sites_inv
+
+        # lil → csr 변환 후 반환
+        return H.tocsr()
 
     def dense_hamiltonian(
         self,
@@ -350,9 +426,6 @@ class YbSOCSystem:
                     hamiltonian[new_idx, state_index] += parity * (-self._U) / self.num_sites
 
         return self.prepare_return_arr(hamiltonian)
-        
-        
-
 
     # number ops    
 
@@ -455,9 +528,9 @@ class YbSOCSystem:
             raise ValueError("Pauli Exclusion principle is violated.")
         
         index = self.state_to_index_map_multi[new_multi_particle_state]
-        state_vector = np.zeros((self.space_dim,))
+        state_vector = np.zeros((self.space_dim,), dtype=np.complex128)
         state_vector[index] = parity
-        return state_vector
+        return self.prepare_return_arr(state_vector)
         
  
 class YbSOC2bodyLoss(YbSOCSystem):
