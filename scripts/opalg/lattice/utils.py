@@ -6,10 +6,6 @@ import jax.numpy as jnp
 from . import multi_index
 
 
-
-
-
-
 def position_arr(lengths, lattice_constant):
     sites_multi_indices = multi_index.multi_indices(lengths)
     position_arr = lattice_constant * jnp.array(sites_multi_indices, dtype=jnp.float64)

@@ -15,7 +15,7 @@ def add_multi_indices(midx1, midx2, lengths):
     return tuple((idx1 + idx2) % length for idx1, idx2, length in zip(midx1, midx2, lengths))
 
 def subtract_multi_indices(midx1, midx2, lengths):
-    return tuple((idx1 + idx2) % length for idx1, idx2, length in zip(midx1, midx2, lengths))
+    return tuple((idx1 - idx2) % length for idx1, idx2, length in zip(midx1, midx2, lengths))
 
 def negate_multi_index(midx, lengths):
     return tuple((-idx) % length for idx, length in zip(midx, lengths))

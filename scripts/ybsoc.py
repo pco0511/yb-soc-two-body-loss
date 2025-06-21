@@ -442,7 +442,7 @@ class YbSOCSystem:
     def momentum_sp_expected_numbers(self, state):
         num_op_diags = self.momentum_sp_num_op_diags()
         probs = np.abs(state) ** 2
-        expected_numbers = np.einsum('ij, j->i',num_op_diags, probs)
+        expected_numbers = np.einsum('ij,j->i',num_op_diags, probs)
         nums_spin_up = expected_numbers[0::2]
         nums_spin_down = expected_numbers[1::2]
         return self.prepare_return_arr(nums_spin_up), self.prepare_return_arr(nums_spin_down)
