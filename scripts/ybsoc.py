@@ -356,17 +356,17 @@ class YbSOCSystem:
         
         return self.prepare_return_arr(num_op_diags)
 
-    def momentum_expected_numbers(self, state):
+    def momentum_expected_numbers(self, state_vector):
         num_op_diags = self.momentum_sp_num_op_diags()
-        probs = np.abs(state) ** 2
+        probs = np.abs(state_vector) ** 2
         expected_numbers = np.einsum('ij,j->i',num_op_diags, probs)
         nums_spin_up = expected_numbers[0::2]
         nums_spin_down = expected_numbers[1::2]
         return self.prepare_return_arr(nums_spin_up), self.prepare_return_arr(nums_spin_down)
 
-    def momentum_expected_numbers_vectorized(self, states):
+    def momentum_expected_numbers_vectorized(self, state_vectors):
         num_op_diags = self.momentum_sp_num_op_diags()
-        probs = np.abs(states) ** 2
+        probs = np.abs(state_vectors) ** 2
         expected_numbers = np.einsum('ij,...j->...i',num_op_diags, probs)
         nums_spin_up = expected_numbers[..., 0::2]
         nums_spin_down = expected_numbers[..., 1::2]
@@ -375,20 +375,65 @@ class YbSOCSystem:
     def momentum_sp_num_op_diags(self):
         return self.momentum_num_op_diags()
     
-    def momentum_sp_expected_numbers(self, state):
-        return self.momentum_expected_numbers(state)
+    def momentum_sp_expected_numbers(self, state_vector):
+        return self.momentum_expected_numbers(state_vector)
     
-    def momentum_sp_expected_numbers_vectorized(self, states):
-        return self.momentum_expected_numbers_vectorized(states)
+    def momentum_sp_expected_numbers_vectorized(self, state_vectors):
+        return self.momentum_expected_numbers_vectorized(state_vectors)
     
-    def position_num_op(self):
-        raise NotImplementedError()
+    def momentum_expected_numbers_mixed(self, density_matrix):
+        num_op_diags = self.momentum_sp_num_op_diags()
+        probs = np.diag(density_matrix)
+        expected_numbers = np.einsum('ij,j->i', num_op_diags, probs)
+        nums_spin_up = expected_numbers[0::2]
+        nums_spin_down = expected_numbers[1::2]
+        return self.prepare_return_arr(nums_spin_up), self.prepare_return_arr(nums_spin_down)
     
-    def position_expected_numbers(self, state):
-        raise NotImplementedError()
+    def position_num_op(self, site_midx, spin):
+        num_op = np.zeros((self._space_dim, self._space_dim), dtype=np.complex128)
+        for state_index, multi_particle_state in enumerate(self.multi_particle_states):
+            for idx1, single_state in enumerate(multi_particle_state):
+                q_midx, _spin = single_state
+                if _spin != spin:
+                    continue
+                q_idx = self._site_to_index_map[q_midx]
+                for k_midx in self.sites_multi_indices:
+                    new_multi_particle_state = list(multi_particle_state)
+                    new_multi_particle_state[idx1] = (k_midx, spin)
+                    new_multi_particle_state, parity = sorted_multi_particle_state(new_multi_particle_state)
+                    if parity == 0:
+                        continue
+                    new_idx = self.state_to_index_map_multi[new_multi_particle_state]
+                    k_idx = self._site_to_index_map[k_midx]
+                    site_idx = self._site_to_index_map[site_midx]
+                    num_op[new_idx, state_index] += parity * (1 / self.num_sites) * np.exp(1j * np.dot(self._momentums[k_idx] - self._momentums[q_idx], self._positions[site_idx]))
+        return num_op
     
-    def position_expected_numbers_vectorized(self, states):
-        raise NotImplementedError()
+    def position_expected_numbers(self, state_vector):
+        nums_spin_up = np.zeros(tuple(self.lengths))
+        nums_spin_down = np.zeros(tuple(self.lengths))
+        for site_index in self.sites_multi_indices:
+            nums_spin_up[*site_index] = np.einsum("i,ij,j", state_vector.conj(), self.position_num_op(site_index, 1), state_vector).real
+            nums_spin_down[*site_index] = np.einsum("i,ij,j", state_vector.conj(), self.position_num_op(site_index, -1), state_vector).real
+        return nums_spin_up, nums_spin_down
+
+    def position_expected_numbers_vectorized(self, state_vectors):
+        nums_spin_up = np.zeros((*state_vectors.shape[:-1], *self.lengths))
+        nums_spin_down = np.zeros((*state_vectors.shape[:-1], *self.lengths))
+        for site_index in self.sites_multi_indices:
+            nums_spin_up[..., *site_index] = np.einsum("...i,ij,...j->...", state_vectors.conj(), self.position_num_op(site_index, 1), state_vectors).real
+            nums_spin_down[..., *site_index] = np.einsum("...i,ij,...j->...", state_vectors.conj(), self.position_num_op(site_index, -1), state_vectors).real
+        return nums_spin_up, nums_spin_down
+    
+    def position_expected_numbers_mixed(self, density_matrix):
+        nums_spin_up = np.zeros(tuple(self.lengths))
+        nums_spin_down = np.zeros(tuple(self.lengths))
+        for site_index in self.sites_multi_indices:
+            nums_spin_up[*site_index] = np.einsum("ij,ji", self.position_num_op(site_index, 1), density_matrix).real
+            nums_spin_down[*site_index] = np.einsum("ij,ji", self.position_num_op(site_index, -1), density_matrix).real
+        return nums_spin_up, nums_spin_down
+    
+    # TODO: these codes can be optimized by using vector-vector product instead of vector-matrix-vector product
     
     # correlation functions
     
