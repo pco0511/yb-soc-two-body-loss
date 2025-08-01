@@ -32,8 +32,13 @@ class PBCBox1D:
         
         self._orbital_indices = [i for i in range(n_momentum_points)]
         self._single_particle_states = list(itertools.product(self._orbital_indices, [1, -1]))
-        self._multi_particle_states = list(itertools.combinations(self._single_particle_states, n_particles))
-
+        if isinstance(n_particles, int):
+            self._multi_particle_states = list(itertools.combinations(self._single_particle_states, n_particles))
+        else:
+            self._multi_particle_states = []
+            for n in n_particles:
+                self._multi_particle_states.extend(itertools.combinations(self._single_particle_states, n))
+        
         self._num_single_particle_states = len(self._single_particle_states)
         self._num_multi_particle_states = len(self._multi_particle_states)
 
@@ -188,7 +193,7 @@ class PBCBox1D:
         return diag
     
     def from_momentum_nums(self, multi_particle_state):
-        if len(multi_particle_state) != self.n_particles:
+        if len(multi_particle_state) not in self.n_particles:
             raise ValueError(f"number of the particle setted in the system({self.n_particles}) and given({len(multi_particle_state)}) are mismatched.")
         
         new_multi_particle_state, parity = sorted_multi_particle_state(multi_particle_state)
