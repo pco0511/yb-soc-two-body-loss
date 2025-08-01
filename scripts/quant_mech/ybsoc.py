@@ -57,7 +57,7 @@ def coo_kinetic_term(
 
 def coo_interaction_term(
     hilbert: PBCBox1D,
-    U: float
+    U: complex
 ):
     data = []
     rows = []
@@ -102,7 +102,7 @@ def dense_hamiltonian(
     m_Yb: float,
     delta: float,
     omega_R: float,
-    U: float,
+    U: complex,
     kinetic: bool = True,
     interaction: bool = True
 ):
@@ -138,7 +138,7 @@ def sparse_hamiltonian_scipy_csr(
     m_Yb: float,
     delta: float,
     omega_R: float,
-    U: float,
+    U: complex,
     kinetic: bool = True,
     interaction: bool = True
 ):
@@ -182,7 +182,7 @@ def sparse_hamiltonian_jax_bcsr(
     m_Yb: float,
     delta: float,
     omega_R: float,
-    U: float,
+    U: complex,
     kinetic: bool = True,
     interaction: bool = True
 ) -> jsparse.JAXSparse:
