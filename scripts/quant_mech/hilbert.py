@@ -1,6 +1,6 @@
 import itertools
 
-from einops import einsum
+from einops import einsum, rearrange
 import numpy as np
 
 from .utils import (
@@ -112,7 +112,8 @@ class PBCBox1D:
         num_op_diags = np.zeros((self.num_single_particle_states, self.space_dim)) # length: space, 2: spin
 
         for state_index, multi_particle_state in enumerate(self.multi_particle_states):
-            for site_index, _ in enumerate(multi_particle_state):
+            for single_state in multi_particle_state:
+                site_index = self.state_to_index_map_single[single_state]
                 num_op_diags[site_index, state_index] = 1
         
         return num_op_diags
@@ -121,18 +122,13 @@ class PBCBox1D:
         num_op_diags = self.momentum_num_op_diags()
         probs = np.abs(state_vectors) ** 2
         expected_numbers = np.einsum('ij,...j->...i',num_op_diags, probs)
-        nums_spin_up = expected_numbers[..., 0::2]
-        nums_spin_down = expected_numbers[..., 1::2]
-        return nums_spin_up, nums_spin_down
+        return rearrange(expected_numbers, '... (m spin) -> ... spin m', spin=2)
     
     
     def momentum_expected_numbers_mixed(self, density_matrix):
-        num_op_diags = self.momentum_num_op_diags()
-        probs = np.diag(density_matrix)
-        expected_numbers = np.einsum('ij,j->i', num_op_diags, probs)
-        nums_spin_up = expected_numbers[0::2]
-        nums_spin_down = expected_numbers[1::2]
-        return nums_spin_up, nums_spin_down
+        num_op_diags = self.momentum_num_op_diags() 
+        expected_numbers = np.einsum('ij,...jj->...i', num_op_diags, density_matrix)
+        return rearrange(expected_numbers, '... (m spin) -> ... spin m', spin=2)
     
     
     def rdm_sum(self, state_vectors):
@@ -172,11 +168,11 @@ class PBCBox1D:
     def position_expected_numbers(self, state_vectors):
         sums = self.rdm_sum(state_vectors)
         
-        xs = np.linspace(0, self.L, self.n_momentum_points, endpoint=False)
+        xs = np.linspace(0, self.L, self.n_momentum_points, endpoint=False) + self.L / (2 * self.n_momentum_points)
         deltas = self.momentums - self.k_min
         
         fourier = np.exp(1j * einsum(xs, deltas, "xs, deltas -> xs deltas"))
-        densities = 2 * np.real(einsum(fourier, sums, "xs deltas, ... spins deltas -> ... spins xs")) - np.expand_dims(sums[..., 0], axis=-1)
+        densities = 2 * np.real(einsum(fourier, sums, "xs deltas, ... spins deltas -> ... spins xs")) - np.expand_dims(np.real(sums[..., 0]), axis=-1)
         densities /= self.L
         
         return densities 
