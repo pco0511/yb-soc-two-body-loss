@@ -1,4 +1,5 @@
 import functools
+
 import numpy as np
 
 
@@ -41,27 +42,34 @@ def format_size(size_in_bytes):
     # Format the number to two decimal places
     return f"{size_in_bytes:.2f} {units[unit_index]}"
 
+
 def print_multi_particle_states_info(multi_particle_states):
 
     num_particles = len(multi_particle_states[0])
     print(f"{len(multi_particle_states)} {num_particles}-particle states")
     print(f"{format_size(len(multi_particle_states) * 16)} per state (complex128)")
-    print(f"{format_size((len(multi_particle_states) ** 2) * 16)} for dense representation of an operator (complex128)")
+    print(
+        f"{format_size((len(multi_particle_states) ** 2) * 16)} for dense representation of an operator (complex128)"
+    )
+
 
 def create_index_map(elements):
     return {element: idx for idx, element in enumerate(elements)}
 
+
 def order(lhs, rhs):
     site_index1, spin1 = lhs
     site_index2, spin2 = rhs
-    
+
     if site_index1 < site_index2:
         return True
     elif site_index1 == site_index2:
         return spin1 > spin2
     return False
 
+
 key_func = functools.cmp_to_key(order)
+
 
 def sorted_multi_particle_state(multi_particle_state):
     """return sorted multi_particle_state as tuple and parity of swap count
@@ -85,4 +93,3 @@ def sorted_multi_particle_state(multi_particle_state):
         if not swapped:
             break
     return tuple(lst), parity
-

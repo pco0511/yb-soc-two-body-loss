@@ -1,20 +1,22 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
-def plot_numbers(up_nums, down_nums, tick_labels=None, title=None, save_path=None, save_options=None):
+def plot_numbers(
+    up_nums, down_nums, tick_labels=None, title=None, save_path=None, save_options=None
+):
     total_nums = up_nums + down_nums
     L = total_nums.shape[0]
     indices = np.arange(L) - (L // 2 - 1)
-    
+
     bar_width = ((6 - 1) / L) * 1.0 / 2
-    
+
     plt.figure(figsize=(6, 4))
-    
-    plt.bar(indices, total_nums, width=2*bar_width, alpha=0.2, color='green')
-    plt.bar(indices - bar_width/2, up_nums, bar_width, label='up')
-    plt.bar(indices + bar_width/2, down_nums, bar_width, label='down')
-    
+
+    plt.bar(indices, total_nums, width=2 * bar_width, alpha=0.2, color="green")
+    plt.bar(indices - bar_width / 2, up_nums, bar_width, label="up")
+    plt.bar(indices + bar_width / 2, down_nums, bar_width, label="down")
+
     if tick_labels is not None:
         plt.xticks(indices, tick_labels)
     else:
@@ -23,7 +25,7 @@ def plot_numbers(up_nums, down_nums, tick_labels=None, title=None, save_path=Non
         plt.title(title)
     else:
         plt.title("Expected numbers")
-    plt.ylabel('$\\langle n\\rangle$')
+    plt.ylabel("$\\langle n\\rangle$")
     plt.legend()
     if save_path is not None:
         if save_options is not None:
@@ -32,7 +34,11 @@ def plot_numbers(up_nums, down_nums, tick_labels=None, title=None, save_path=Non
             plt.savefig(save_path)
     plt.show()
 
-def generate_k_labels(n_momentum_points, k0, ):
+
+def generate_k_labels(
+    n_momentum_points,
+    k0,
+):
     zero_index = -((n_momentum_points - 1) // 2)
     start_coeff = zero_index * k0
     coeffs = [start_coeff + i * k0 for i in range(n_momentum_points)]
