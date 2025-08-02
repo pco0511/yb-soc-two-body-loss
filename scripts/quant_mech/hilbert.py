@@ -28,15 +28,24 @@ class PBCBox1D:
         if not (isinstance(n_particles, int) or
                 (isinstance(n_particles, list) and all(isinstance(x, int) for x in n_particles))):
             raise ValueError("n_particles should be an integer or a list of integers.")
-        self.n_particles = n_particles
+        if isinstance(n_particles, list):
+            if not all((isinstance(x, int) and x >= 0) for x in n_particles):
+                raise ValueError("All elements in n_particles list should be non-negative integers.")
+            self.n_particles = sorted(n_particles)
+        elif isinstance(n_particles, int):
+            if n_particles < 0:
+                raise ValueError("n_particles should be a non-negative.")
+            self.n_particles = n_particles
+        else:
+            raise ValueError("n_particles should be an integer or a list of integers.")
         
         self._orbital_indices = [i for i in range(n_momentum_points)]
         self._single_particle_states = list(itertools.product(self._orbital_indices, [1, -1]))
-        if isinstance(n_particles, int):
-            self._multi_particle_states = list(itertools.combinations(self._single_particle_states, n_particles))
+        if isinstance(self.n_particles, int):
+            self._multi_particle_states = list(itertools.combinations(self._single_particle_states, self.n_particles))
         else:
             self._multi_particle_states = []
-            for n in n_particles:
+            for n in self.n_particles:
                 self._multi_particle_states.extend(itertools.combinations(self._single_particle_states, n))
         
         self._num_single_particle_states = len(self._single_particle_states)
@@ -112,6 +121,15 @@ class PBCBox1D:
     def print_info(self):
         print_multi_particle_states_info(self.multi_particle_states)
         
+    
+    def check_n_particles(self, n_particles: int):
+        if isinstance(self.n_particles, int):
+            return n_particles == self.n_particles
+        elif isinstance(self.n_particles, list):
+            return n_particles in self.n_particles
+        return False
+    
+    
     # number ops    
     def momentum_num_op_diags(self):
         num_op_diags = np.zeros((self.num_single_particle_states, self.space_dim)) # length: space, 2: spin
@@ -192,8 +210,8 @@ class PBCBox1D:
                 diag[index] = 1
         return diag
     
-    def from_momentum_nums(self, multi_particle_state):
-        if len(multi_particle_state) not in self.n_particles:
+    def from_momentum_occupations(self, multi_particle_state):
+        if not self.check_n_particles(len(multi_particle_state)):
             raise ValueError(f"number of the particle setted in the system({self.n_particles}) and given({len(multi_particle_state)}) are mismatched.")
         
         new_multi_particle_state, parity = sorted_multi_particle_state(multi_particle_state)
@@ -207,7 +225,7 @@ class PBCBox1D:
         return state_vector
         
     def get_momentum_eigenstate(self, multi_particle_state):
-        return self.from_momentum_nums(multi_particle_state)
+        return self.from_momentum_occupations(multi_particle_state)
     
     def from_momentum_wavefunctions(self, wavefunctions):
         raise NotImplementedError()
