@@ -1,4 +1,3 @@
 jax[cuda12]
-netket
-optax
 matplotlib
+einops
