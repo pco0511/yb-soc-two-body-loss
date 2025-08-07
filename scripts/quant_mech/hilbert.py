@@ -40,7 +40,7 @@ class PBCBox1D:
                 raise ValueError(
                     "All elements in n_particles list should be non-negative integers."
                 )
-            self.n_particles = sorted(n_particles)
+            self.n_particles = sorted(n_particles)  
         elif isinstance(n_particles, int):
             if n_particles < 0:
                 raise ValueError("n_particles should be a non-negative.")

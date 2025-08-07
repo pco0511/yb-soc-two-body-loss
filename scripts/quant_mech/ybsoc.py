@@ -273,3 +273,32 @@ def lindblad_two_body_loss_scipy_csr(
         for _d, _r, _c in zip(data, rows, cols)
     ]
     return csrs
+
+def lindblad_two_body_loss_jax_bcsr(
+    hilb: PBCBox1D, gamma: float, reduced_rows: bool = False
+):
+    data, rows, cols = coo_lindblad_two_body_loss(hilb, gamma)
+    n_cols = hilb.space_dim
+    if reduced_rows:
+        # Exclude subspaces that are not in the range of the loss operator.
+        n_rows = hilb.space_dim - math.comb(
+            hilb.num_single_particle_states, hilb.n_particles[-1]
+        )
+    else:
+        n_rows = hilb.space_dim
+        
+    bcsrs = []
+    
+    for _d, _r, _c in zip(data, rows, cols):
+        # Convert to JAX arrays
+        _d = jnp.array(_d, dtype=jnp.complex128)
+        _r = jnp.array(_r, dtype=jnp.int32)
+        _c = jnp.array(_c, dtype=jnp.int32)
+        indices = jnp.concat([_r, _c], axis=-1)
+        
+        hamiltonian_bcoo = jsparse.BCOO(
+            (_d, indices),
+            shape=(n_rows, n_cols),
+        )
+        bcsrs.append(jsparse.BCSR.from_bcoo(hamiltonian_bcoo))
+    return bcsrs
