@@ -2,3 +2,8 @@ data/numerical/
 data/temp/
 visualizations/
 figures/    
+**/__pycache__
+.python-version
+pyproject.toml
+.venv/
+uv.lock
