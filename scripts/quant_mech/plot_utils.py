@@ -63,3 +63,32 @@ def generate_k_labels(
             formatted_str = f"${num_str}k_r$"
         result_list.append(formatted_str)
     return result_list
+
+def plot_fractions(up_frac, down_frac, total_frac, tick_labels=None, title=None, save_path=None, save_options=None):
+    L = total_frac.shape[0]
+    indices = np.arange(L) - (L // 2 - 1)
+
+    bar_width = ((6 - 1) / L) * 1.0 / 2
+
+    plt.figure(figsize=(6, 4))
+
+    plt.bar(indices, total_frac, width=2*bar_width, alpha=0.2, color='green')
+    plt.bar(indices - bar_width/2, up_frac, bar_width, alpha=0.35, label='up')
+    plt.bar(indices + bar_width/2, down_frac, bar_width, alpha=0.35, label='down')
+    if tick_labels is not None:
+        plt.xticks(indices, tick_labels)
+    else:
+        plt.xticks(indices)
+    if title is not None:
+        plt.title(title)
+    else:
+        plt.title("Fractions")
+    plt.ylabel('$\\langle n\\rangle_\\text{final}/ \\langle n\\rangle_\\text{init}$')
+    plt.ylim(-0.1, 1.1)
+    plt.legend()
+    if save_path is not None:
+        if save_options is not None:
+            plt.savefig(save_path, **save_options)
+        else:
+            plt.savefig(save_path)
+    plt.show()
