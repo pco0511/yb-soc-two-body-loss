@@ -30,7 +30,10 @@ from quant_mech.plot_utils import (
 
 print(jax.devices())
 
-DATA_ROOT = r"/root/yb-soc-two-body-loss/data/temp/fig3_lindblad_13_7_2"
+# DATA_ROOT = r"/root/yb-soc-two-body-loss/data/temp/fig3_lindblad_13_7_2"
+# NH
+DATA_ROOT = r"/root/yb-soc-two-body-loss/data/temp/fig3_nonhermitian_13_5_1"
+
 os.makedirs(DATA_ROOT, exist_ok=True)
 
 # System definition
@@ -39,7 +42,7 @@ t_r = 0.1129 # ms
 
 
 n_momentum_points = 13
-n_particles = 7
+n_particles = 5
 
 hbar = 1.
 m_Yb = 1.
@@ -50,7 +53,7 @@ omega_R = 3.5
 
 k0 = 0.5
 L = 2 * np.pi / k0
-gamma = 10.0
+gamma = .3
 
 T2 = 1.5 / t_r
 
@@ -291,7 +294,12 @@ def qjm_step(
     )
     return psi_jumped
 
-momentum_num_op_diag = jnp.array(hilb.momentum_num_op_diags())
+# momentum_num_op_diag = jnp.array(hilb.momentum_num_op_diags())
+# NH
+momentum_num_op_diag = hilb.momentum_num_op_diags()
+momentum_num_op_diag[:subspace_dim] = 0
+momentum_num_op_diag = jnp.array(momentum_num_op_diag)
+
 
 @jax.jit
 def psis_to_momenum_nums(psi_batched: Complex[Array, "hdim batch"]):
