@@ -3,6 +3,7 @@ import math
 import json
 import os
 import itertools
+from pathlib import Path
 from functools import partial
 
 import numpy as np
@@ -32,20 +33,56 @@ from quant_mech.plot_utils import (
     plot_fractions
 )
 from quant_mech.qjm import qjm_step
+import argparse
 
 print(f"Using: {jax.devices()}")
 
-# DATA_ROOT = r"/root/yb-soc-two-body-loss/data/temp/fig3_lindblad_13_7_2"
-# NH
-DATA_ROOT = r"/root/yb-soc-two-body-loss/data/temp/fig3_nonhermitian_13_5_1"
+
+parser = argparse.ArgumentParser(description="Lindblad QJM Simulation for Yb SOC System")
+
+parser.add_argument('--run_name', type=str, help='Root directory for data and figures')
+parser.add_argument('--nh', action='store_true', help='Use Non-Hermitian Hamiltonian instead of Lindblad operators')
+parser.add_argument('--n_momentum_points', type=int, required=True, help='Number of momentum points')
+parser.add_argument('--n_particles', type=int, required=True, help='Number of particles')
+# parser.add_argument('--n_timesteps', type=int, default=51, help='Number of time steps to save')
+# parser.add_argument('--n_trajectories', type=int, default=512, help='Number of QJM trajectories')
+# parser.add_argument('--batch_size', type=int, default=32, help='Batch size for trajectories')
+# parser.add_argument('--jumps_per_step', type=int, default=4, help='Number of jumps per saved time step')
+parser.add_argument('--seed', type=int, default=42, help='Random seed')
+
+args = parser.parse_args()
+
+# Generate timestamp (MMDDHHMM)
+CURRENT_TIME_STAMP = time.strftime("%m%d%H%M")
+
+DATA_ROOT = Path(os.path.dirname(__file__)).parent / "data" / "temp"
+
+if args.nh:
+    DEFAULT_NAME = f"nh_{args.n_momentum_points}_{args.n_particles}_{CURRENT_TIME_STAMP}"
+else:
+    DEFAULT_NAME = f"lindblad_{args.n_momentum_points}_{args.n_particles}_{CURRENT_TIME_STAMP}"
+        
+# Use parsed arguments
+if args.run_name:
+    if "{default}" in args.run_name:
+        RUN_NAME = args.run_name.replace("{default}", DEFAULT_NAME)
+    else:
+        RUN_NAME = args.run_name
+else:
+    RUN_NAME = DEFAULT_NAME
+    
+DATA_ROOT = DATA_ROOT / RUN_NAME
 
 data_dir = os.path.join(DATA_ROOT, "data")
 figs_dir = os.path.join(DATA_ROOT, "figs")
+print(f"saving data to: {DATA_ROOT}")
+
+NH = args.nh
+key = jax.random.key(args.seed)
 
 os.makedirs(data_dir, exist_ok=True)
 os.makedirs(figs_dir, exist_ok=True)
 
-print(f"saving data to: {DATA_ROOT}")
 
 NH = False
 # NH = True
@@ -57,11 +94,10 @@ else:
 os.makedirs(DATA_ROOT, exist_ok=True)
 
 # System definition
-
 t_r = 0.1129 # ms
 
-n_momentum_points = 13
-n_particles = 5
+n_momentum_points = args.n_momentum_points
+n_particles = args.n_particles
 
 hbar = 1.
 m_Yb = 1.
@@ -75,6 +111,11 @@ L = 2 * np.pi / k0
 gamma = .3
 
 T2 = 1.5 / t_r
+
+# batch_size = args.batch_size
+# jumps_per_step = args.jumps_per_step
+# n_timesteps = args.n_timesteps
+# n_trajectories = args.n_trajectories
 
 # saving parameters
 
@@ -117,42 +158,67 @@ max_par_sub_hilb = hilbert.PBCBox1D(
 hilb.print_info()
 
 # initial state
-print("constructing initial state...")
-ks = np.array(hilb.momentums)
-momentum_modes = tuple(np.argsort(ks ** 2)[:n_particles].tolist())
-pure = hilb.get_momentum_eigenstate(
-    tuple((mode, 1) for mode in momentum_modes)
-)
+print("constructing SOC ground state...")
+# ks = np.array(hilb.momentums)
+# momentum_modes = tuple(np.argsort(ks ** 2)[:n_particles].tolist())
+# pure = hilb.get_momentum_eigenstate(
+#     tuple((mode, 1) for mode in momentum_modes)
+# )
 
-mixture = hilb.get_momentum_eigenstate(
-    tuple((mode, (-1) ** idx) for idx, mode in enumerate(momentum_modes))
-)
+# mixture = hilb.get_momentum_eigenstate(
+#     tuple((mode, (-1) ** idx) for idx, mode in enumerate(momentum_modes))
+# )
 
-prob_up = 1 - 0.31844
-theta = 2 * np.arccos(np.sqrt(prob_up))  # p(up) = 2/3, p(down) = 1/3
-phi = 0
+# prob_up = 1 - 0.31844
+# theta = 2 * np.arccos(np.sqrt(prob_up))  # p(up) = 2/3, p(down) = 1/3
+# phi = 0
 
-alpha = np.cos(theta / 2)
-beta = np.exp(1j * phi) * np.sin(theta / 2)
+# alpha = np.cos(theta / 2)
+# beta = np.exp(1j * phi) * np.sin(theta / 2)
 
-spin_amps = {
-    1: alpha,
-    -1: beta
-}
-spins = list(spin_amps.keys())
+# spin_amps = {
+#     1: alpha,
+#     -1: beta
+# }
+# spins = list(spin_amps.keys())
 
-superposed = np.zeros_like(mixture)
-for spin_config in itertools.product(spins, repeat=n_particles):
-    amp = np.prod([spin_amps[s] for s in spin_config])
-    basis_config = tuple(
-        (mode, spin) for mode, spin in zip(momentum_modes, spin_config)
-    )
-    basis = hilb.get_momentum_eigenstate(basis_config)
-    superposed = superposed + amp * basis
+# superposed = np.zeros_like(mixture)
+# for spin_config in itertools.product(spins, repeat=n_particles):
+#     amp = np.prod([spin_amps[s] for s in spin_config])
+#     basis_config = tuple(
+#         (mode, spin) for mode, spin in zip(momentum_modes, spin_config)
+#     )
+#     basis = hilb.get_momentum_eigenstate(basis_config)
+#     superposed = superposed + amp * basis
     
-# initial_state = pure
-# initial_state = mixture
-initial_state = superposed
+# # initial_state = pure
+# # initial_state = mixture
+# initial_state = superposed
+
+soc_hamiltonian = ybsoc.sparse_hamiltonian_scipy_csr(
+    hilb,
+    hbar=hbar,
+    k_r=k_r,
+    m_Yb=m_Yb,
+    delta=delta,
+    omega_R=omega_R,
+    U=0.0
+)
+
+E_gs, psi_gs = scipy.sparse.linalg.eigsh(
+    soc_hamiltonian,
+    k=1,
+    which='SA',
+    tol=1e-6,
+    return_eigenvectors=True
+)
+
+soc_ground = np.zeros((hilb.space_dim,), dtype=np.complex128)
+soc_ground[-max_par_sub_hilb.space_dim:] = psi_gs[:, 0]
+
+print(f"Ground state energy: {E_gs[0]}")
+
+initial_state = soc_ground
 
 print("plotting initial state...")
 
@@ -229,9 +295,6 @@ def psis_to_momenum_nums(psi_batched: Complex[Array, "hdim batch"]):
 
 scaled_exponent = jsparse.BCSR.from_scipy_sparse((-1j * delta_t / hbar) * H_eff_scipy / steps_for_expm)
 stacked_loss_op = jsparse.BCSR.from_scipy_sparse(stacked_loss_op_scipy)
-
-seed = 50
-key = jax.random.key(seed)
 
 up_nums_momentum = np.zeros((n_timesteps, n_momentum_points))
 down_nums_momentum = np.zeros((n_timesteps, n_momentum_points))
@@ -376,7 +439,7 @@ plot_numbers(
     save_path=fig_path,
     save_options=save_options
 )
-fig_path = os.path.join(figs_dir, "total_momentum_numbers.png")
+fig_path = os.path.join(figs_dir, "final_momentum_numbers.png")
 plot_numbers(
     final_momentum_nums_up,
     final_momentum_nums_down,
