@@ -4,8 +4,10 @@
 
 
 
-
-
+if cuSPARSE error occurs:
+```bash
+unset LD_LIBRARY_PATH
+```
 
 
 example:

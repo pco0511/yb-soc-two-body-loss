@@ -112,6 +112,17 @@ gamma = .3
 
 T2 = 1.5 / t_r
 
+
+# figure options
+transparent = True
+dpi = 300
+save_options = {
+    "transparent": transparent,
+    "dpi": dpi
+}
+
+
+
 # batch_size = args.batch_size
 # jumps_per_step = args.jumps_per_step
 # n_timesteps = args.n_timesteps
@@ -196,7 +207,7 @@ print("constructing SOC ground state...")
 # initial_state = superposed
 
 soc_hamiltonian = ybsoc.sparse_hamiltonian_scipy_csr(
-    hilb,
+    max_par_sub_hilb,
     hbar=hbar,
     k_r=k_r,
     m_Yb=m_Yb,
@@ -225,10 +236,23 @@ print("plotting initial state...")
 k_tick_labels = generate_k_labels(n_momentum_points, k0)
 
 initial_nums = hilb.momentum_expected_numbers(initial_state)
-plot_numbers(*initial_nums, tick_labels=k_tick_labels, title="Momentum")
+fig_path = os.path.join(figs_dir, "initial_position_numbers.png")
+plot_numbers(
+    *initial_nums, 
+    tick_labels=k_tick_labels, 
+    title="Momentum",
+    save_path=fig_path,
+    save_options=save_options
+)
 
 initial_nums = hilb.position_expected_numbers(initial_state)
-plot_numbers(*initial_nums, title="Position")
+fig_path = os.path.join(figs_dir, "initial_position_numbers.png")
+plot_numbers(
+    *initial_nums, 
+    title="Position",
+    save_path=fig_path,
+    save_options=save_options
+)
 
 
 # simulation settings
@@ -387,14 +411,6 @@ np.save(os.path.join(data_dir, "total_down.npy"), total_down)
 np.save(os.path.join(data_dir, "fraction_up.npy"), fraction_up)
 np.save(os.path.join(data_dir, "fraction_down.npy"), fraction_down)
     
-# figure options
-transparent = True
-dpi = 300
-save_options = {
-    "transparent": transparent,
-    "dpi": dpi
-}
-
 # plot figures
 fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(6, 9))
 
