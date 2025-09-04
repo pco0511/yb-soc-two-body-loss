@@ -44,11 +44,13 @@ parser.add_argument('--run_name', type=str, help='Root directory for data and fi
 parser.add_argument('--nh', action='store_true', help='Use Non-Hermitian Hamiltonian instead of Lindblad operators')
 parser.add_argument('--n_momentum_points', type=int, required=True, help='Number of momentum points')
 parser.add_argument('--n_particles', type=int, required=True, help='Number of particles')
-# parser.add_argument('--n_savesteps', type=int, default=51, help='Number of time steps to save')
-# parser.add_argument('--n_trajectories', type=int, default=512, help='Number of QJM trajectories')
-# parser.add_argument('--batch_size', type=int, default=32, help='Batch size for trajectories')
-# parser.add_argument('--jumps_per_step', type=int, default=4, help='Number of jumps per saved time step')
-parser.add_argument('--seed', type=int, default=42, help='Random seed')
+parser.add_argument('--n_savesteps', type=int, default=51, help='Number of time steps to save')
+parser.add_argument('--n_trajectories', type=int, default=512, help='Number of QJM trajectories')
+parser.add_argument('--batch_size', type=int, default=64, help='Batch size for trajectories')
+parser.add_argument('--jumps_per_step', type=int, default=4, help='Number of jumps per saved time step')
+parser.add_argument('--gamma', type=float, default=0.4, help='2-body dissipation rate')
+parser.add_argument('--T2', type=float, default=1.0, help='T2 decoherence')
+parser.add_argument('--seed', type=int, default=0, help='Random seed')
 
 args = parser.parse_args()
 
@@ -98,8 +100,6 @@ t_r = 0.1129 # ms
 E_r = 9.3428e-31 # J
 T_r = 6.7669e-2 # μK
 
-8.8593e3
-
 n_momentum_points = args.n_momentum_points
 n_particles = args.n_particles
 
@@ -110,11 +110,11 @@ k_r = 1.0
 delta = 4.0
 omega_R = 3.5
 
-k0 = 0.5
+k0 = 1.0
 L = 2 * np.pi / k0
-gamma = 0.6
+gamma = args.gamma
 
-T2 = 1.5 / t_r
+T2 = args.T2 / t_r
 
 temperature = 0
 # temperature = 0.001 / T_r # 100 nano kelvin
@@ -132,13 +132,13 @@ save_options = {
 # simulation settings
 t0 = 0
 t1 = 3.0 / 0.1129
-n_savesteps = 51
+n_savesteps = 61
 save_at = np.linspace(t0, t1, n_savesteps)
 step_size = save_at[1] - save_at[0]
 
-n_trajectories = 2048
-batch_size = 32
-jumps_per_step = 6
+n_trajectories = 512
+batch_size = 64
+jumps_per_step = 4
 
 assert n_trajectories % batch_size == 0
 
@@ -172,7 +172,7 @@ parameters_json = json.dumps(
         },
         "simulation_settings": {
             "t0": t0,
-            "t1": t1,
+            "t1": t1 * t_r,
             "n_savesteps": n_savesteps,
             "step_size": step_size,
             "n_trajectories": n_trajectories,
@@ -181,6 +181,7 @@ parameters_json = json.dumps(
             "num_batches": num_batches,
             "total_n_steps": total_n_steps,
             "delta_t": delta_t,
+            "seed": args.seed
         }
     },
     indent=4
