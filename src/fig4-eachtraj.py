@@ -110,7 +110,7 @@ k_r = 1.0
 delta = 4.0
 omega_R = 3.5
 
-k0 = 1.0
+k0 = 0.5
 L = 2 * np.pi / k0
 gamma = args.gamma
 
