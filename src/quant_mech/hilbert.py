@@ -73,6 +73,13 @@ class PBCBox1D:
         self._momentums = get_momentums(self.k0, self.n_momentum_points)
 
     @property
+    def max_n_particles(self):
+        if isinstance(self.n_particles, list):
+            return self.n_particles[-1]
+        else:
+            return self.n_particles
+        
+    @property
     def k0(self):
         return 2 * np.pi / self.L
 
@@ -166,13 +173,17 @@ class PBCBox1D:
         expected_numbers = np.einsum("ij,...jj->...i", num_op_diags, density_matrix)
         return rearrange(expected_numbers, "... (m spin) -> ... spin m", spin=2)
 
-    def rdm_sum(self, state_vectors):
+    def rdm_sum(self, state_vectors, nh=False):
         # \bra{\psi} c^\dagger_\sigma(k) c_\sigma(q) \ket{\psi}
         batch_shape = state_vectors.shape[:-1]
         sums = np.zeros((*batch_shape, 2, self.n_momentum_points), dtype=np.complex128)
-
+        
         for state_index, multi_particle_state in enumerate(self.multi_particle_states):
-
+            if nh:
+                if len(multi_particle_state) < self.max_n_particles:
+                    # print(len(multi_particle_state), self.max_n_particles)
+                    continue
+                
             # diagonal elements
             for q_idx, sz in multi_particle_state:
                 spin_idx = (1 - sz) // 2  # 0 for spin up, 1 for spin down
@@ -204,8 +215,8 @@ class PBCBox1D:
 
         return sums
 
-    def position_expected_numbers(self, state_vectors):
-        sums = self.rdm_sum(state_vectors)
+    def position_expected_numbers(self, state_vectors, nh=False):
+        sums = self.rdm_sum(state_vectors, nh)
 
         xs = np.linspace(0, self.L, self.n_momentum_points, endpoint=False) + self.L / (
             2 * self.n_momentum_points
@@ -219,6 +230,10 @@ class PBCBox1D:
         densities /= self.L
 
         return densities
+    
+
+    
+    
 
     # TODO: functions for mixed state
 
@@ -230,6 +245,9 @@ class PBCBox1D:
                 diag[index] = 1
         return diag
 
+    def zero_state(self):
+        return np.zeros((self.space_dim,), dtype=np.complex128)
+    
     def from_momentum_occupations(self, multi_particle_state):
         if not self.check_n_particles(len(multi_particle_state)):
             raise ValueError(

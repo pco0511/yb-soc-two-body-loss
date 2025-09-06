@@ -1,5 +1,5 @@
-data/numerical/
-data/temp/
+data/
+~data/experiment/
 visualizations/
 figures/    
 **/__pycache__

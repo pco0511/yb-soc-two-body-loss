@@ -1,45 +1,13 @@
 import os
 import subprocess
 import itertools
-# gamma_T2s = [
-    # (0.1, 0.8),
-    # (0.25, 0.8),
-    # (0.4, 0.8),
-    # (0.7, 0.8),
-    # (1.0, 0.8),
-    # (2.0, 0.8)
-# ]
-
-# gamma_T2s = [
-#     # (0.25, 0.2),
-#     # (0.25, 0.4),
-#     # (0.25, 1.0),
-#     # (0.25, 2.0),
-#     # (0.25, 4.0),
-#     (0.25, 300.0)
-# ]
-
-# gamma_T2s = [
-#     (0.25, 1e8),
-#     (0.40, 1e8),
-#     (0.7, 1e8),
-#     (1.0, 1e8),
-#     (2.0, 1e8)
-# ]
-
-gammas = [
-    0.3,
-    0.4,
-    0.5
-]
-T2s = [
-    0.8,
-    1.5,
-    1e8
-]
 
 gamma_T2s = [
-    (gamma, T2) for gamma, T2 in itertools.product(gammas, T2s)
+    (0.38, 0.85),
+    (0.38, 0.9),
+    (0.38, 1.0),
+    (0.38, 1.25),
+    (0.38, 1.5)
 ]
 
 print(gamma_T2s)
@@ -53,6 +21,7 @@ def make_command(
     n_momentum_points: int=13,
     n_particles: int=6,
     n_savesteps: int=51,
+    jumps_per_step: int=4,
     gamma: float=0.4,
     T2: float=0.8,
     sim_time: float=2.0,
@@ -67,7 +36,7 @@ def make_command(
         "--n_momentum_points", f"{n_momentum_points}", 
         "--n_particles", f"{n_particles}", 
         "--n_savesteps", f"{n_savesteps}", 
-        # "--jumps_per_step", "4",
+        "--jumps_per_step", f"{jumps_per_step}",
         "--gamma", f"{gamma:.4f}",
         "--T2", f"{T2:.4f}",
         "--sim_time", f"{sim_time:.4f}",
@@ -78,6 +47,13 @@ def make_command(
     return commands
 
 for gamma, T2 in gamma_T2s:
-    comm = make_command(gamma=gamma, T2=T2, group_name="nh_and_lindblad", nh=True)
+    comm = make_command(
+        gamma=gamma, 
+        T2=T2, 
+        group_name="fig3b/param_search", 
+        initial_state="mixture",
+        sim_time=2.0,
+        nh=True
+    )
     print(f"running simulation: {gamma=}, {T2=}")
     subprocess.run(comm, check=True)
