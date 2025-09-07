@@ -24,7 +24,7 @@ import jax.experimental.sparse as jsparse
 
 from jaxtyping import Array, Complex, PRNGKeyArray
 
-from einops import einsum, rearrange
+from einops import einsum, rearrange, unpack
 
 from quant_mech import hilbert, ybsoc
 from quant_mech.plot_utils import (
@@ -405,8 +405,13 @@ if zerotemp:
     up_mom, down_mom = hilb.momentum_expected_numbers(initial_state)
     up_pos, down_pos = hilb.position_expected_numbers(initial_state)
 else:
-    up_moms, down_moms = hilb.momentum_expected_numbers(initial_states)
-    up_poss, down_poss = hilb.position_expected_numbers(initial_states)
+    updown_moms = hilb.momentum_expected_numbers(initial_states)
+    updown_poss = hilb.position_expected_numbers(initial_states)
+
+    up_moms = updown_moms[:, 0, :]
+    down_moms = updown_moms[:, 1, :]
+    up_poss = updown_poss[:, 0, :]
+    down_poss = updown_poss[:, 1, :]
     
     up_mom = np.einsum("i,im->m", boltz_truncated, up_moms)
     down_mom = np.einsum("i,im->m", boltz_truncated, down_moms)
@@ -453,7 +458,7 @@ gpu_device = jax.devices('gpu')[0]
 initial_states_jaxcpu = jnp.array(initial_states, device=cpu_device)
 boltz_logits_jaxcpu = jnp.array(boltz_logits, device=cpu_device)
 
-@jax.jit
+@partial(jax.jit, static_argnums=(3))
 def sample_from_boltzmann(key, initial_states, boltz_logits, batch_size):
     indices = jax.random.categorical(key, boltz_logits, shape=(batch_size,))
     psis = initial_states[indices]
