@@ -270,7 +270,7 @@ match (args.initial_state):
                 if p < 1e-4:
                     break
                 n_lows += 1
-            print(f"Considering {n_lows} low-lying states for finite-temperature calculations.")
+            print(f"Using {n_lows} low-lying states for finite-temperature calculations.")
             initial_states = np.zeros((n_lows, hilb.space_dim), dtype=np.complex128)
             if initial_states.nbytes > 2 ** 32:
                 print("Warning: initial_states takes more than 4 GB")
@@ -282,7 +282,11 @@ match (args.initial_state):
             for ss in lowlyings:
                 if cnt >= n_lows:
                     break
-                psi = hilb.from_single_states(ss)
+                try:
+                    psi = hilb.from_single_states(ss)
+                except Exception as e:
+                    print(f"{ss=}")
+                    raise e
                 initial_states[cnt, :] = psi
                 cnt += 1
             boltz_truncated = boltz[:n_lows]
@@ -319,29 +323,6 @@ match (args.initial_state):
 # def sample_from_boltzmann(n_samples, lowlyings, boltzmann_logits, key):
 #     indices = jax.random.categorical(key, boltzmann_logits, shape=(n_samples,))
 #     return lowlyings[:, indices]
-
-print("plotting initial state...")
-
-k_tick_labels = generate_k_labels(n_momentum_points, k0)
-
-initial_nums = hilb.momentum_expected_numbers(initial_state)
-fig_path = os.path.join(figs_dir, "initial_momentum_numbers.png")
-plot_numbers(
-    *initial_nums, 
-    tick_labels=k_tick_labels, 
-    title="Initial state $\\langle n(q_x) \\rangle$",
-    save_path=fig_path,
-    save_options=save_options
-)
-
-initial_nums = hilb.position_expected_numbers(initial_state)
-fig_path = os.path.join(figs_dir, "initial_position_numbers.png")
-plot_numbers(
-    *initial_nums, 
-    title="Initial State $\\langle n(x) \\rangle$",
-    save_path=fig_path,
-    save_options=save_options
-)
 
 # operators
 print("constructing operators...")
@@ -445,11 +426,48 @@ if NH:
     down_nums_position_nh[:, 0, :] = down_pos[np.newaxis, :]
 
 
+print("plotting initial state...")
+
+k_tick_labels = generate_k_labels(n_momentum_points, k0)
+
+fig_path = os.path.join(figs_dir, "initial_momentum_numbers.png")
+plot_numbers(
+    up_mom, down_mom, 
+    tick_labels=k_tick_labels, 
+    title="Initial state $\\langle n(q_x) \\rangle$",
+    save_path=fig_path,
+    save_options=save_options
+)
+
+fig_path = os.path.join(figs_dir, "initial_position_numbers.png")
+plot_numbers(
+    up_pos, down_pos, 
+    title="Initial State $\\langle n(x) \\rangle$",
+    save_path=fig_path,
+    save_options=save_options
+)
+
+cpu_device = jax.devices('cpu')[0]
+gpu_device = jax.devices('gpu')[0]
+
+initial_states_jaxcpu = jnp.array(initial_states, device=cpu_device)
+boltz_logits_jaxcpu = jnp.array(boltz_logits, device=cpu_device)
+
+@jax.jit
+def sample_from_boltzmann(key, initial_states, boltz_logits, batch_size):
+    indices = jax.random.categorical(key, boltz_logits, shape=(batch_size,))
+    psis = initial_states[indices]
+    psis = rearrange(psis, "b n -> n b")
+    return jax.device_put(psis, device=gpu_device)
 
 # qjm iterations
 for i_batch in range(num_batches):
-    psi_batched = np.repeat(initial_state[:, np.newaxis], batch_size, axis=1) # prepare batched states
-    psi_batched = jnp.array(psi_batched, dtype=np.complex128) # convert to jax array
+    if zerotemp:
+        psi_batched = np.repeat(initial_state[:, np.newaxis], batch_size, axis=1) # prepare batched states
+        psi_batched = jnp.array(psi_batched, dtype=np.complex128) # convert to jax array
+    else:
+        key, subkey = jax.random.split(key)
+        psi_batched = sample_from_boltzmann(subkey, initial_states_jaxcpu, boltz_logits_jaxcpu, batch_size)
 
     for iteration in tqdm.trange(total_n_steps, desc=f"batch {i_batch}: {(i_batch+1) * batch_size}/{n_trajectories} Trajectories", leave=False):
         # start = time.time()
