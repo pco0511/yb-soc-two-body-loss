@@ -3,7 +3,7 @@ import numpy as np
 
 
 def plot_numbers(
-    up_nums, down_nums, tick_labels=None, title=None, save_path=None, save_options=None
+    up_nums, down_nums, tick_labels=None, title=None, ylim=None, save_path=None, save_options=None
 ):
     total_nums = up_nums + down_nums
     L = total_nums.shape[0]
@@ -25,6 +25,10 @@ def plot_numbers(
         plt.title(title)
     else:
         plt.title("Expected numbers")
+    if ylim is not None:
+        plt.ylim(ylim)
+        
+        
     plt.ylabel("$\\langle n\\rangle$")
     plt.legend()
     if save_path is not None:
@@ -64,7 +68,7 @@ def generate_k_labels(
         result_list.append(formatted_str)
     return result_list
 
-def plot_fractions(up_frac, down_frac, total_frac, tick_labels=None, title=None, save_path=None, save_options=None):
+def plot_fractions(up_frac, down_frac, total_frac, tick_labels=None, title=None, ylim=None, save_path=None, save_options=None):
     L = total_frac.shape[0]
     indices = np.arange(L) - (L // 2 - 1)
 
@@ -83,6 +87,8 @@ def plot_fractions(up_frac, down_frac, total_frac, tick_labels=None, title=None,
         plt.title(title)
     else:
         plt.title("Fractions")
+    if ylim is not None:
+        plt.ylim(ylim)
     plt.ylabel('$\\langle n\\rangle_\\text{final}/ \\langle n\\rangle_\\text{init}$')
     plt.ylim(-0.1, 1.1)
     plt.legend()

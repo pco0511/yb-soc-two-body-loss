@@ -13,7 +13,7 @@ gamma_T2s = [
 print(gamma_T2s)
 
 def make_command(
-    *,
+    *,  
     python_file_name: str="src/qjm_lindblad_base.py",
     group_name: str="temp",
     run_name_prefix: str="fig3mixture",

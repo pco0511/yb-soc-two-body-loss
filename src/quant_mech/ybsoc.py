@@ -10,6 +10,107 @@ from .hilbert import PBCBox1D
 from .utils import sorted_multi_particle_state
 
 
+def trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    return ((hbar ** 2) / (2 * m_Yb)) * (
+        (q_x - k_r) ** 2 + (q_x + k_r) ** 2
+    )
+
+def delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    return ((hbar ** 2) / (2 * m_Yb)) * (
+        (q_x - k_r) ** 2 - (q_x + k_r) ** 2
+    ) + delta
+
+def e1(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    tr = trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
+    de = delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
+    return (tr + jnp.sqrt(de ** 2 + omega_R**2)) / 2
+
+def e2(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    tr = trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
+    de = delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
+    return (tr - jnp.sqrt(de ** 2 + omega_R**2)) / 2
+
+def theta(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    de = delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
+    assert omega_R >= 0
+    
+    if omega_R == 0.0:
+        return 0.0
+    
+    if -1e-12 < de <= 0:
+        return -np.pi / 4
+    elif 0 <= de < 1e-12:
+        return np.pi / 4
+        
+    return (1 / 2) * jnp.arctan(omega_R / de)
+
+def alpha(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    return jnp.cos(theta(q_x, m_Yb, k_r, delta, omega_R, hbar))
+
+def beta(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    return jnp.sin(theta(q_x, m_Yb, k_r, delta, omega_R, hbar))
+
+def soc_spectrum(
+    hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if not isinstance(hilb.n_particles, int):
+        raise ValueError(f"Hilber space must be an sector that particle number is fixed. but {hilb.n_particles=}")
+    
+    single_spectrum = []
+    single_states = []
+    full_momentum_modes = []
+    
+    for mode_idx, q_x in enumerate(hilb.momentums):
+        _e1 = e1(q_x, m_Yb, k_r, delta, omega_R, hbar)
+        _e2 = e2(q_x, m_Yb, k_r, delta, omega_R, hbar)
+        _alpha = alpha(q_x, m_Yb, k_r, delta, omega_R, hbar)
+        _beta = beta(q_x, m_Yb, k_r, delta, omega_R, hbar)
+        
+        single_spectrum.append(_e1)
+        full_momentum_modes.append(mode_idx)
+        single_states.append([_alpha, _beta])
+        single_spectrum.append(_e2)
+        full_momentum_modes.append(mode_idx)
+        single_states.append([-_beta, _alpha])
+    
+    single_spectrum = np.array(single_spectrum)
+    full_momentum_modes = np.array(full_momentum_modes)
+    single_states = np.array(single_states)
+
+    sorted_idx = np.argsort(single_spectrum)
+    single_spectrum = single_spectrum[sorted_idx]
+    full_momentum_modes = full_momentum_modes[sorted_idx]
+    single_states = single_states[sorted_idx]
+    
+    return single_spectrum, full_momentum_modes, single_states
+    
+def single_to_multi_spectrum(
+    single_spectrum: np.ndarray, n_particles
+) -> tuple[np.ndarray, np.ndarray]:
+    n_single_states = single_spectrum.shape[0]
+    idx_combinations = np.array(list(itertools.combinations(range(n_single_states), r=n_particles)))
+    multi_spectrum = np.array([np.sum(single_spectrum[ii]) for ii in idx_combinations])
+    sorted_idx = np.argsort(multi_spectrum)
+
+    multi_spectrum = multi_spectrum[sorted_idx]
+    idx_combinations = idx_combinations[sorted_idx]
+    
+    return multi_spectrum, idx_combinations
+
+def manybody_spectrum(
+    hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float
+):
+    single_spectrum, full_momentum_modes, single_states = soc_spectrum(hilb, hbar, k_r, m_Yb, delta, omega_R)
+    multi_spectrum, idx_combinations = single_to_multi_spectrum(single_spectrum, hilb.n_particles)
+    assert single_spectrum.shape[0] == hilb.num_single_particle_states
+    assert idx_combinations.shape[0] == hilb.num_multi_particle_states
+    
+    lowlyings = ([(m, alphabeta) for m, alphabeta in zip(full_momentum_modes[ii], single_states[ii])]
+                  for ii in idx_combinations)
+    
+    return multi_spectrum, lowlyings
+    
+
 def coo_kinetic_term(
     hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float
 ):

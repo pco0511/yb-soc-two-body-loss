@@ -56,7 +56,6 @@ parser.add_argument('--batch_size', type=int, default=64, help='Batch size for t
 parser.add_argument('--jumps_per_step', type=int, default=4, help='Number of jumps per saved time step')
 parser.add_argument('--gamma', type=float, default=0.4, help='2-body dissipation rate')
 parser.add_argument('--T2', type=float, default=1.0, help='T2 decoherence')
-parser.add_argument('--temperature', type=float, help="Temperature in micro Kelvin. Only works in initial_state=soc_ground. If not given, it is treated as zero temperature.")
 parser.add_argument('--sim_time', type=float, default=1.0, help='simulation time in mili second')
 parser.add_argument('--seed', type=int, default=0, help='Random seed')
 
@@ -121,13 +120,11 @@ gamma = args.gamma
 
 T2 = args.T2 / t_r
 
-if args.temperature is not None:
-    temperature = args.temperature / T_r
-    zerotemp = False
-else:
-    temperature = 0.0
-    zerotemp = True
-    
+temperature = 0
+# temperature = 0.001 / T_r # 100 nano kelvin
+
+zerotemp = (temperature == 0)
+
 # figure options
 transparent = True
 dpi = 300
@@ -181,8 +178,6 @@ parameters_json = json.dumps(
             "t0": t0,
             "t1": t1 * t_r,
             "mode": 'non-Hermitian' if NH else "lindbladian",
-            "zerotemp": zerotemp,
-            "temperature": temperature,
             "n_savesteps": n_savesteps,
             "step_size": step_size,
             "n_trajectories": n_trajectories,
@@ -250,46 +245,27 @@ match (args.initial_state):
             basis = hilb.get_momentum_eigenstate(basis_config)
             initial_state = initial_state + amp * basis
     case "soc_ground":
-        
-        spectrum, lowlyings = ybsoc.manybody_spectrum(
+        soc_hamiltonian = ybsoc.sparse_hamiltonian_scipy_csr(
             max_par_sub_hilb,
-            hbar, k_r, m_Yb, delta, omega_R
+            hbar=hbar,
+            k_r=k_r,
+            m_Yb=m_Yb,
+            delta=delta,
+            omega_R=omega_R,
+            U=0.0
         )
-        
-        if zerotemp:
-            ss = next(iter(lowlyings))
-            initial_state = hilb.from_single_states(ss)
-            E_gs = spectrum[0]
-            print(f"Ground state energy: {E_gs}")
-        else:
-            boltz = np.exp(-spectrum / temperature)
-            Z = np.sum(boltz)
-            boltz /= Z
-            n_lows = 0
-            for p in boltz:
-                if p < 1e-4:
-                    break
-                n_lows += 1
-            print(f"Considering {n_lows} low-lying states for finite-temperature calculations.")
-            initial_states = np.zeros((n_lows, hilb.space_dim), dtype=np.complex128)
-            if initial_states.nbytes > 2 ** 32:
-                print("Warning: initial_states takes more than 4 GB")
-                
-            if initial_states.nbytes > 32 * 2 ** 30:
-                raise ValueError("candidate of initial state is too mush.")
-            
-            cnt = 0
-            for ss in lowlyings:
-                if cnt >= n_lows:
-                    break
-                psi = hilb.from_single_states(ss)
-                initial_states[cnt, :] = psi
-                cnt += 1
-            boltz_truncated = boltz[:n_lows]
-            Z_truncated = np.sum(boltz_truncated)
-            boltz_truncated /= Z_truncated
-            boltz_logits = -spectrum[:n_lows] / temperature
-        
+        E_gs, gs = scipy.sparse.linalg.eigsh(
+            soc_hamiltonian,
+            k=1,
+            which='SA',
+            tol=1e-6,
+            return_eigenvectors=True
+        )
+        E_gs = E_gs[0]
+        psi_gs = gs[:, 0]
+        initial_state = hilb.zero_state()
+        initial_state[-max_par_sub_hilb.space_dim:] = psi_gs
+        print(f"Ground state energy: {E_gs}")
     case _:
         raise ValueError(f"invalid initial state type: {args.initial_state}")
 
@@ -419,32 +395,23 @@ if NH:
     state_norm_square_nh = np.zeros((n_trajectories, n_savesteps))
     state_norm_square_nh[:, 0] = 1
 
+psi_batched = np.repeat(initial_state[:, np.newaxis], batch_size, axis=1) # prepare batched states
+psi_batched = jnp.array(psi_batched, dtype=np.complex128) # convert to jax array
 
-if zerotemp:
-    up_mom, down_mom = hilb.momentum_expected_numbers(initial_state)
-    up_pos, down_pos = hilb.position_expected_numbers(initial_state)
-else:
-    up_moms, down_moms = hilb.momentum_expected_numbers(initial_states)
-    up_poss, down_poss = hilb.position_expected_numbers(initial_states)
-    
-    up_mom = np.einsum("i,im->m", boltz_truncated, up_moms)
-    down_mom = np.einsum("i,im->m", boltz_truncated, down_moms)
-    up_pos = np.einsum("i,im->m", boltz_truncated, up_poss)
-    down_pos = np.einsum("i,im->m", boltz_truncated, down_poss)
-    
+
+up_mom, down_mom = hilb.momentum_expected_numbers(initial_state)
 up_nums_momentum[:, 0, :] = up_mom[np.newaxis, :]
 down_nums_momentum[:, 0, :] = down_mom[np.newaxis, :]
 if NH:
     up_nums_momentum_nh[:, 0, :] = up_mom[np.newaxis, :]
     down_nums_momentum_nh[:, 0, :] = down_mom[np.newaxis, :]
 
+up_pos, down_pos = hilb.position_expected_numbers(initial_state)
 up_nums_position[:, 0, :] = up_pos[np.newaxis, :]
 down_nums_position[:, 0, :] = down_pos[np.newaxis, :]
 if NH:
     up_nums_position_nh[:, 0, :] = up_pos[np.newaxis, :]
     down_nums_position_nh[:, 0, :] = down_pos[np.newaxis, :]
-
-
 
 # qjm iterations
 for i_batch in range(num_batches):

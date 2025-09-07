@@ -1,3 +1,4 @@
+import math
 import itertools
 
 import numpy as np
@@ -265,7 +266,36 @@ class PBCBox1D:
         state_vector = np.zeros((self.space_dim,), dtype=np.complex128)
         state_vector[index] = parity
         return state_vector
+    
+    def from_single_states(self, single_states):
+        """
+        single_states: list of (momentum_idx, (alpha, beta))
+        |alpha| ** 2 + |beta| ** 2 = 1
+        """
+        n_particles = len(single_states)
+        
+        if not self.check_n_particles(n_particles):
+            raise ValueError(
+                f"number of the particle setted in the system({self.n_particles}) and given({len(single_states)}) are mismatched."
+            )
+        momentum_modes = [n for n, _ in single_states]
+        amps = np.array([[alpha, beta] for _, (alpha, beta) in single_states])
+        state_vector = self.zero_state()
+        for spin_config in itertools.product([0, 1], repeat=n_particles):
+            amp = np.prod([amps[i, s] for i, s in enumerate(spin_config)])
+            basis_config = tuple(
+                (mode, 1 - 2 * spin) for mode, spin in zip(momentum_modes, spin_config)
+            )
+            basis = self.from_momentum_occupations(basis_config)
+            state_vector = state_vector + amp * basis
+        return state_vector
 
+    def from_max_particle_sector(self, psi):
+        state_vector = self.zero_state()
+        max_particle_sector_dim = math.comb(self.num_single_particle_states, self.max_n_particles)
+        state_vector[-max_particle_sector_dim:] = psi
+        return state_vector
+    
     def get_momentum_eigenstate(self, multi_particle_state):
         return self.from_momentum_occupations(multi_particle_state)
 
