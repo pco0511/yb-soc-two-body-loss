@@ -236,14 +236,14 @@ match (args.initial_state):
             -1: beta
         }
         spins = [-1, 1]
-        superposed = hilb.zero_state()
+        initial_state = hilb.zero_state()
         for spin_config in itertools.product(spins, repeat=n_particles):
             amp = np.prod([spin_amps[s] for s in spin_config])
             basis_config = tuple(
                 (mode, spin) for mode, spin in zip(momentum_modes, spin_config)
             )
             basis = hilb.get_momentum_eigenstate(basis_config)
-            superposed = superposed + amp * basis
+            initial_state = initial_state + amp * basis
     case "soc_ground":
         soc_hamiltonian = ybsoc.sparse_hamiltonian_scipy_csr(
             max_par_sub_hilb,
