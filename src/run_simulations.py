@@ -1,6 +1,6 @@
-import os
+# import os
 import subprocess
-import itertools
+# import itertools
 # gamma_T2s = [
     # (0.1, 0.8),
     # (0.25, 0.8),
@@ -10,14 +10,14 @@ import itertools
     # (2.0, 0.8)
 # ]
 
-# gamma_T2s = [
-#     # (0.25, 0.2),
-#     # (0.25, 0.4),
-#     # (0.25, 1.0),
-#     # (0.25, 2.0),
-#     # (0.25, 4.0),
-#     (0.25, 300.0)
-# ]
+gamma_T2s = [
+    (0.25, 1.0),
+    (0.25, 2.0),
+    (0.25, 4.0),
+    (0.25, 10.0),
+    (0.25, 20.0),
+    (0.25, 50.0)
+]
 
 # gamma_T2s = [
 #     (0.25, 1e8),
@@ -27,20 +27,20 @@ import itertools
 #     (2.0, 1e8)
 # ]
 
-gammas = [
-    0.3,
-    0.4,
-    0.5
-]
-T2s = [
-    0.8,
-    1.5,
-    1e8
-]
+# gammas = [
+#     0.3,
+#     0.4,
+#     0.5
+# ]
+# T2s = [
+#     0.8,
+#     1.5,
+#     1e8
+# ]
 
-gamma_T2s = [
-    (gamma, T2) for gamma, T2 in itertools.product(gammas, T2s)
-]
+# gamma_T2s = [
+#     (gamma, T2) for gamma, T2 in itertools.product(gammas, T2s)
+# ]
 
 print(gamma_T2s)
 
@@ -49,13 +49,13 @@ def make_command(
     python_file_name: str="src/qjm_lindblad_base.py",
     group_name: str="temp",
     run_name_prefix: str="fig3mixture",
-    initial_state: str="mixture",
+    initial_state: str="soc_ground",
     n_momentum_points: int=13,
     n_particles: int=6,
-    n_savesteps: int=51,
+    n_savesteps: int=61,
     gamma: float=0.4,
     T2: float=0.8,
-    sim_time: float=2.0,
+    sim_time: float=3.0,
     nh: bool=False,
     seed: int=0
 ):
@@ -77,7 +77,7 @@ def make_command(
         commands.append("--nh")
     return commands
 
-for gamma, T2 in gamma_T2s:
-    comm = make_command(gamma=gamma, T2=T2, group_name="nh_and_lindblad", nh=True)
-    print(f"running simulation: {gamma=}, {T2=}")
+for idx, (gamma, T2) in enumerate(gamma_T2s):
+    comm = make_command(gamma=gamma, T2=T2, group_name="fig4c/param_search", run_name_prefix=f"sim_{idx}", nh=True)
+    print(f"running simulation for: {gamma=}, {T2=}")
     subprocess.run(comm, check=True)
