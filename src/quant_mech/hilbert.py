@@ -249,7 +249,7 @@ class PBCBox1D:
     def zero_state(self):
         return np.zeros((self.space_dim,), dtype=np.complex128)
     
-    def from_momentum_occupations(self, multi_particle_state):
+    def from_momentum_occupations(self, multi_particle_state, allow_zero=False):
         if not self.check_n_particles(len(multi_particle_state)):
             raise ValueError(
                 f"number of the particle setted in the system({self.n_particles}) and given({len(multi_particle_state)}) are mismatched."
@@ -260,7 +260,10 @@ class PBCBox1D:
         )
 
         if parity == 0:
-            raise ValueError("Pauli Exclusion principle is violated.")
+            if allow_zero:
+                return self.zero_state()
+            else:
+                raise ValueError(f"Pauli Exclusion principle is violated: {multi_particle_state}")
 
         index = self.state_to_index_map_multi[new_multi_particle_state]
         state_vector = np.zeros((self.space_dim,), dtype=np.complex128)
@@ -272,6 +275,19 @@ class PBCBox1D:
         single_states: list of (momentum_idx, (alpha, beta))
         |alpha| ** 2 + |beta| ** 2 = 1
         """
+        # checking pauli exclusion:
+        memo = {}
+        for midx, (alpha, beta) in single_states:
+            if midx in memo:
+                alpha_prev, beta_prev = memo[midx]
+                dot = np.conj(alpha_prev) * alpha + np.conj(beta_prev) * beta
+                if abs(dot) > 1e-8:
+                    raise ValueError(
+                        f"Pauli Exclusion violated."
+                    )
+            else:
+                memo[midx] = (alpha, beta)
+        
         n_particles = len(single_states)
         
         if not self.check_n_particles(n_particles):
@@ -286,7 +302,7 @@ class PBCBox1D:
             basis_config = tuple(
                 (mode, 1 - 2 * spin) for mode, spin in zip(momentum_modes, spin_config)
             )
-            basis = self.from_momentum_occupations(basis_config)
+            basis = self.from_momentum_occupations(basis_config, allow_zero=True)
             state_vector = state_vector + amp * basis
         return state_vector
 
