@@ -12,13 +12,13 @@ from .utils import sorted_multi_particle_state
 
 def trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
     return ((hbar ** 2) / (2 * m_Yb)) * (
-        (q_x - k_r) ** 2 + (q_x + k_r) ** 2
+        (q_x + k_r) ** 2 + (q_x - k_r) ** 2
     )
 
 def delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
     return ((hbar ** 2) / (2 * m_Yb)) * (
-        (q_x - k_r) ** 2 - (q_x + k_r) ** 2
-    ) + delta
+        (q_x + k_r) ** 2 - (q_x - k_r) ** 2
+    ) - delta
 
 def e1(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
     tr = trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
@@ -127,7 +127,7 @@ def coo_kinetic_term(
             if (i + 1 < N) and (momentum_idx == multi_particle_state[i + 1][0]):
                 # if state contains c_up(k) and c_down(k) both
                 diag_val += ((hbar**2) / (2 * m_Yb)) * (
-                    (q_x - k_r) ** 2 + (q_x + k_r) ** 2
+                    (q_x + k_r) ** 2 + (q_x - k_r) ** 2
                 )
                 i += 2
             else:
@@ -139,7 +139,7 @@ def coo_kinetic_term(
 
                 # diagonal term
                 diag_val += ((hbar**2) / (2 * m_Yb)) * (
-                    (q_x - spin * k_r) ** 2
+                    (q_x + spin * k_r) ** 2
                 ) + spin * delta / 2
 
                 # off-diagonal term
