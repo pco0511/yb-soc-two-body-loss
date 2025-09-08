@@ -105,7 +105,7 @@ def manybody_spectrum(
     assert single_spectrum.shape[0] == hilb.num_single_particle_states
     assert idx_combinations.shape[0] == hilb.num_multi_particle_states
     
-    lowlyings = ([(m, alphabeta) for m, alphabeta in zip(full_momentum_modes[ii], single_states[ii])]
+    lowlyings = ([(int(m), alphabeta) for m, alphabeta in zip(full_momentum_modes[ii], single_states[ii])]
                   for ii in idx_combinations)
     
     return multi_spectrum, lowlyings

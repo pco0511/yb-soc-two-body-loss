@@ -50,10 +50,10 @@ def make_command(
         commands.append("--nh")
     return commands
 
-for n in n_pars:
-    comm = make_command(n_particles=n, group_name="nh/nh_lindblad_cmp_mixture", initial_state="mixture", nh=True)
-    print(f"running simulation: {n=}, mixture")
-    subprocess.run(comm, check=True)
+# for n in n_pars:
+#     comm = make_command(n_particles=n, group_name="nh/nh_lindblad_cmp_mixture", initial_state="mixture", nh=True)
+#     print(f"running simulation: {n=}, mixture")
+#     subprocess.run(comm, check=True)
 
 for n in n_pars:
     prob_up = 1 - 0.31844
