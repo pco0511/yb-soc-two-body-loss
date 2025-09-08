@@ -43,34 +43,50 @@ parser = argparse.ArgumentParser(description="Lindblad QJM Simulation for Yb SOC
 parser.add_argument('--group_name', type=str, default="temp")
 parser.add_argument('--run_name', type=str, help='Root directory for data and figures')
 parser.add_argument('--nh', action='store_true', help='Use Non-Hermitian Hamiltonian instead of Lindblad operators')
-parser.add_argument('--initial_state', type=str, required=True, help='initial state for simulation.', choices=[
-    'aligned_up', 'mixture', 'superposition', 'soc_ground', 'custom'
-])
-parser.add_argument('--theta', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
-parser.add_argument('--phi', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
-parser.add_argument('--n_momentum_points', type=int, required=True, help='Number of momentum points')
-parser.add_argument('--n_particles', type=int, required=True, help='Number of particles')
+parser.add_argument('--soc_dir', type=str, required=True, help='Directory where SOC quench evolution data is saved')
+parser.add_argument('--initial_state_index', type=int, required=True)
 parser.add_argument('--n_savesteps', type=int, default=51, help='Number of time steps to save')
 parser.add_argument('--n_trajectories', type=int, default=512, help='Number of QJM trajectories')
 parser.add_argument('--batch_size', type=int, default=64, help='Batch size for trajectories')
 parser.add_argument('--jumps_per_step', type=int, default=4, help='Number of jumps per saved time step')
-parser.add_argument('--gamma', type=float, default=0.4, help='2-body dissipation rate')
-parser.add_argument('--T2', type=float, default=1.0, help='T2 decoherence')
-parser.add_argument('--temperature', type=float, help="Temperature in micro Kelvin. Only works in initial_state=soc_ground. If not given, it is treated as zero temperature.")
+parser.add_argument('--gamma', type=float, default=0.38, help='2-body dissipation rate')
+parser.add_argument('--T2', type=float, default=1.25, help='T2 decoherence')
 parser.add_argument('--sim_time', type=float, default=1.0, help='simulation time in mili second')
-parser.add_argument('--seed', type=int, default=0, help='Random seed')
+parser.add_argument('--seed', type=int, help='Random seed if not given, the timestamp will be used.')
 
 args = parser.parse_args()
 
 # Generate timestamp (MMDDHHMM)
 CURRENT_TIME_STAMP = time.strftime("%m%d%H%M")
-
 DATA_ROOT = Path(os.path.dirname(__file__)).parent / "data" / args.group_name
 
+def load_params(data_dir):
+    data_path = os.path.join(data_dir, "data/parameters.json")
+    with open(data_path, 'r') as f:
+        params = json.load(f)
+    return params
+
+def load_nparray(data_dir, file_name):
+    data_path = os.path.join(data_dir, "data", file_name)
+    with open(data_path, 'rb') as f:
+        nparr = np.load(f)
+    return nparr
+
+params = load_params(args.soc_dir)
+
+n_momentum_points = params["n_momentum_points"]
+n_particles = params["n_particles"]
+
+hbar = params["hbar"]
+m_Yb = params["m_Yb"]
+
+k0 = params["k0"]
+L = params["L"]
+
 if args.nh:
-    DEFAULT_NAME = f"nh_{args.n_momentum_points}_{args.n_particles}_{CURRENT_TIME_STAMP}"
+    DEFAULT_NAME = f"nh_{n_momentum_points}_{n_particles}_{CURRENT_TIME_STAMP}"
 else:
-    DEFAULT_NAME = f"lindblad_{args.n_momentum_points}_{args.n_particles}_{CURRENT_TIME_STAMP}"
+    DEFAULT_NAME = f"lindblad_{n_momentum_points}_{n_particles}_{CURRENT_TIME_STAMP}"
         
 # Use parsed arguments
 if args.run_name:
@@ -88,7 +104,13 @@ figs_dir = os.path.join(DATA_ROOT, "figs")
 print(f"saving data to: {DATA_ROOT}")
 
 NH = args.nh
-key = jax.random.key(args.seed)
+if args.seed is not None:
+    seed = args.seed
+else:
+    seed = int(time.time())
+    
+key = jax.random.key(seed)
+
 
 os.makedirs(data_dir, exist_ok=True)
 os.makedirs(figs_dir, exist_ok=True)
@@ -105,29 +127,9 @@ t_r = 0.1129 # ms
 E_r = 9.3428e-31 # J
 T_r = 6.7669e-2 # μK
 
-n_momentum_points = args.n_momentum_points
-n_particles = args.n_particles
-
-hbar = 1.
-m_Yb = 1.
-
-k_r = 1.0
-delta = 4.0
-omega_R = 3.5
-
-k0 = 0.5
-L = 2 * np.pi / k0
 gamma = args.gamma
-
 T2 = args.T2 / t_r
 
-if args.temperature is not None:
-    temperature = args.temperature / T_r
-    zerotemp = False
-else:
-    temperature = 0.0
-    zerotemp = True
-    
 # figure options
 transparent = True
 dpi = 300
@@ -168,11 +170,6 @@ parameters_json = json.dumps(
         "n_particles": n_particles,
         "hbar": hbar,
         "m_Yb": m_Yb,
-        "soc": {
-            "k_r": k_r,
-            "delta": delta,
-            "omega_R": omega_R,
-        },
         "pa": {
             "gamma": gamma,
             "T2": T2 * t_r
@@ -181,8 +178,6 @@ parameters_json = json.dumps(
             "t0": t0,
             "t1": t1 * t_r,
             "mode": 'non-Hermitian' if NH else "lindbladian",
-            "zerotemp": zerotemp,
-            "temperature": temperature,
             "n_savesteps": n_savesteps,
             "step_size": step_size,
             "n_trajectories": n_trajectories,
@@ -191,7 +186,7 @@ parameters_json = json.dumps(
             "num_batches": num_batches,
             "total_n_steps": total_n_steps,
             "delta_t": delta_t,
-            "seed": args.seed
+            "seed": seed
         }
     },
     indent=4
@@ -216,121 +211,11 @@ max_par_sub_hilb = hilbert.PBCBox1D(
 subspace_dim = hilb.space_dim - max_par_sub_hilb.space_dim
 
 # initial state
-ks = np.array(hilb.momentums)
-momentum_modes = tuple(np.argsort(ks ** 2)[:n_particles].tolist())
+print(f"loading initial state {args.initial_state_index}")
 
+psis = load_nparray(args.soc_dir, "state_trajectory.npy")
+initial_state = hilb.from_max_particle_sector(psis[args.initial_state_index])
 
-print(f"constructing initial state: {args.initial_state}")
-
-match (args.initial_state):
-    case "aligned_up":
-        initial_state = hilb.get_momentum_eigenstate(
-            tuple((mode, 1) for mode in momentum_modes)
-        )
-    case "mixture":
-        initial_state = hilb.get_momentum_eigenstate(
-            tuple((mode, (-1) ** idx) for idx, mode in enumerate(momentum_modes))
-        )
-    case "superposition":
-        theta = args.theta
-        phi = args.phi
-        alpha = np.cos(theta / 2)
-        beta = np.exp(1j * phi) * np.sin(theta / 2)
-        spin_amps = {
-            1: alpha,
-            -1: beta
-        }
-        spins = [-1, 1]
-        initial_state = hilb.zero_state()
-        for spin_config in itertools.product(spins, repeat=n_particles):
-            amp = np.prod([spin_amps[s] for s in spin_config])
-            basis_config = tuple(
-                (mode, spin) for mode, spin in zip(momentum_modes, spin_config)
-            )
-            basis = hilb.get_momentum_eigenstate(basis_config)
-            initial_state = initial_state + amp * basis
-    case "soc_ground":
-        
-        spectrum, lowlyings = ybsoc.manybody_spectrum(
-            max_par_sub_hilb,
-            hbar, k_r, m_Yb, delta, omega_R
-        )
-        
-        if zerotemp:
-            ss = next(iter(lowlyings))
-            initial_state = hilb.from_single_states(ss)
-            E_gs = spectrum[0]
-            print(f"Ground state energy: {E_gs}")
-        else:
-            boltz = np.exp(-spectrum / temperature)
-            Z = np.sum(boltz)
-            boltz /= Z
-            n_lows = 0
-            for p in boltz:
-                if p < 1e-4:
-                    break
-                n_lows += 1
-            print(f"Using {n_lows} low-lying states for finite-temperature calculations.")
-            initial_states = np.zeros((n_lows, hilb.space_dim), dtype=np.complex128)
-            if initial_states.nbytes > 2 ** 32:
-                print("Warning: initial_states takes more than 4 GB")
-                
-            if initial_states.nbytes > 32 * 2 ** 30:
-                raise ValueError("candidate of initial state is too mush.")
-            
-            cnt = 0
-            for ss in lowlyings:
-                if cnt >= n_lows:
-                    break
-                try:
-                    psi = hilb.from_single_states(ss)
-                except Exception as e:
-                    print(f"{ss=}")
-                    raise e
-                initial_states[cnt, :] = psi
-                cnt += 1
-            boltz_truncated = boltz[:n_lows]
-            Z_truncated = np.sum(boltz_truncated)
-            boltz_truncated /= Z_truncated
-            boltz_logits = -spectrum[:n_lows] / temperature
-    case "custom":
-        allowed_momentum_modes = [6, 7, 8, 9, 10, 11]
-        spectrum, lowlyings = ybsoc.manybody_spectrum(
-            max_par_sub_hilb,
-            hbar, k_r, m_Yb, delta, omega_R,
-            allowed_momentum_modes
-        )
-        ss = next(iter(lowlyings))
-        initial_state = hilb.from_single_states(ss)
-    case _:
-        raise ValueError(f"invalid initial state type: {args.initial_state}")
-
-# if zerotemp:
-
-# if zerotemp:    
-#     n_states = 1
-# else:
-#     n_states = 100
-    
-# E, lowlying = scipy.sparse.linalg.eigsh(
-#     soc_hamiltonian,
-#     k=n_states,
-#     which='SA',
-#     tol=1e-6,
-#     return_eigenvectors=True
-# )
-# E_gs = E[0]
-# psi_gs = lowlying[:, 0]
-
-# eps = 1e-6
-
-# print("prob ratio, exp((E - E_gs)/T):")
-# [print](np.exp(-(E[-1] - E_gs) / temperature))
-    
-# @partial(jax.jit, static_argnames=['n_samples'])
-# def sample_from_boltzmann(n_samples, lowlyings, boltzmann_logits, key):
-#     indices = jax.random.categorical(key, boltzmann_logits, shape=(n_samples,))
-#     return lowlyings[:, indices]
 
 # operators
 print("constructing operators...")
@@ -409,22 +294,8 @@ if NH:
     state_norm_square_nh[:, 0] = 1
 
 
-if zerotemp:
-    up_mom, down_mom = hilb.momentum_expected_numbers(initial_state)
-    up_pos, down_pos = hilb.position_expected_numbers(initial_state)
-else:
-    updown_moms = hilb.momentum_expected_numbers(initial_states)
-    updown_poss = hilb.position_expected_numbers(initial_states)
-
-    up_moms = updown_moms[:, 0, :]
-    down_moms = updown_moms[:, 1, :]
-    up_poss = updown_poss[:, 0, :]
-    down_poss = updown_poss[:, 1, :]
-    
-    up_mom = np.einsum("i,im->m", boltz_truncated, up_moms)
-    down_mom = np.einsum("i,im->m", boltz_truncated, down_moms)
-    up_pos = np.einsum("i,im->m", boltz_truncated, up_poss)
-    down_pos = np.einsum("i,im->m", boltz_truncated, down_poss)
+up_mom, down_mom = hilb.momentum_expected_numbers(initial_state)
+up_pos, down_pos = hilb.position_expected_numbers(initial_state)
     
 up_nums_momentum[:, 0, :] = up_mom[np.newaxis, :]
 down_nums_momentum[:, 0, :] = down_mom[np.newaxis, :]
@@ -460,29 +331,10 @@ plot_numbers(
     save_options=save_options
 )
 
-cpu_device = jax.devices('cpu')[0]
-gpu_device = jax.devices('gpu')[0]
-
-
-if not zerotemp:
-    initial_states_jaxcpu = jnp.array(initial_states, device=cpu_device)
-    boltz_logits_jaxcpu = jnp.array(boltz_logits, device=cpu_device)
-
-    @partial(jax.jit, static_argnums=(3))
-    def sample_from_boltzmann(key, initial_states, boltz_logits, batch_size):
-        indices = jax.random.categorical(key, boltz_logits, shape=(batch_size,))
-        psis = initial_states[indices]
-        psis = rearrange(psis, "b n -> n b")
-        return jax.device_put(psis, device=gpu_device)
-
 # qjm iterations
 for i_batch in range(num_batches):
-    if zerotemp:
-        psi_batched = np.repeat(initial_state[:, np.newaxis], batch_size, axis=1) # prepare batched states
-        psi_batched = jnp.array(psi_batched, dtype=np.complex128) # convert to jax array
-    else:
-        key, subkey = jax.random.split(key)
-        psi_batched = sample_from_boltzmann(subkey, initial_states_jaxcpu, boltz_logits_jaxcpu, batch_size)
+    psi_batched = np.repeat(initial_state[:, np.newaxis], batch_size, axis=1) # prepare batched states
+    psi_batched = jnp.array(psi_batched, dtype=np.complex128) # convert to jax array
 
     for iteration in tqdm.trange(total_n_steps, desc=f"batch {i_batch}: {(i_batch+1) * batch_size}/{n_trajectories} Trajectories", leave=False):
         # start = time.time()

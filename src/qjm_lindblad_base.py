@@ -58,7 +58,7 @@ parser.add_argument('--gamma', type=float, default=0.4, help='2-body dissipation
 parser.add_argument('--T2', type=float, default=1.0, help='T2 decoherence')
 parser.add_argument('--temperature', type=float, help="Temperature in micro Kelvin. Only works in initial_state=soc_ground. If not given, it is treated as zero temperature.")
 parser.add_argument('--sim_time', type=float, default=1.0, help='simulation time in mili second')
-parser.add_argument('--seed', type=int, default=0, help='Random seed')
+parser.add_argument('--seed', type=int, help='Random seed if not given, the timestamp will be used.')
 
 args = parser.parse_args()
 
@@ -88,7 +88,12 @@ figs_dir = os.path.join(DATA_ROOT, "figs")
 print(f"saving data to: {DATA_ROOT}")
 
 NH = args.nh
-key = jax.random.key(args.seed)
+if args.seed is not None:
+    seed = args.seed
+else:
+    seed = int(time.time())
+    
+key = jax.random.key(seed)
 
 os.makedirs(data_dir, exist_ok=True)
 os.makedirs(figs_dir, exist_ok=True)
@@ -191,7 +196,7 @@ parameters_json = json.dumps(
             "num_batches": num_batches,
             "total_n_steps": total_n_steps,
             "delta_t": delta_t,
-            "seed": args.seed
+            "seed": seed
         }
     },
     indent=4
@@ -490,7 +495,7 @@ for i_batch in range(num_batches):
             n_loss_channels=n_loss_channels,
             loss_op_rank=subspace_dim,
             T2=T2,
-            key=subkey
+            key=subkey  
         )
         # psi_batched.block_until_ready()
         # print("qjm step", time.time() - start)
