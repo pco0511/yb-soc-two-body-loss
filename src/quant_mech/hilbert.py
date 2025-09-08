@@ -1,3 +1,4 @@
+import math
 import itertools
 
 import numpy as np
@@ -72,6 +73,13 @@ class PBCBox1D:
 
         self._momentums = get_momentums(self.k0, self.n_momentum_points)
 
+    @property
+    def max_n_particles(self):
+        if isinstance(self.n_particles, list):
+            return self.n_particles[-1]
+        else:
+            return self.n_particles
+        
     @property
     def k0(self):
         return 2 * np.pi / self.L
@@ -166,13 +174,17 @@ class PBCBox1D:
         expected_numbers = np.einsum("ij,...jj->...i", num_op_diags, density_matrix)
         return rearrange(expected_numbers, "... (m spin) -> ... spin m", spin=2)
 
-    def rdm_sum(self, state_vectors):
+    def rdm_sum(self, state_vectors, nh=False):
         # \bra{\psi} c^\dagger_\sigma(k) c_\sigma(q) \ket{\psi}
         batch_shape = state_vectors.shape[:-1]
         sums = np.zeros((*batch_shape, 2, self.n_momentum_points), dtype=np.complex128)
-
+        
         for state_index, multi_particle_state in enumerate(self.multi_particle_states):
-
+            if nh:
+                if len(multi_particle_state) < self.max_n_particles:
+                    # print(len(multi_particle_state), self.max_n_particles)
+                    continue
+                
             # diagonal elements
             for q_idx, sz in multi_particle_state:
                 spin_idx = (1 - sz) // 2  # 0 for spin up, 1 for spin down
@@ -204,8 +216,8 @@ class PBCBox1D:
 
         return sums
 
-    def position_expected_numbers(self, state_vectors):
-        sums = self.rdm_sum(state_vectors)
+    def position_expected_numbers(self, state_vectors, nh=False):
+        sums = self.rdm_sum(state_vectors, nh)
 
         xs = np.linspace(0, self.L, self.n_momentum_points, endpoint=False) + self.L / (
             2 * self.n_momentum_points
@@ -219,6 +231,10 @@ class PBCBox1D:
         densities /= self.L
 
         return densities
+    
+
+    
+    
 
     # TODO: functions for mixed state
 
@@ -230,7 +246,10 @@ class PBCBox1D:
                 diag[index] = 1
         return diag
 
-    def from_momentum_occupations(self, multi_particle_state):
+    def zero_state(self):
+        return np.zeros((self.space_dim,), dtype=np.complex128)
+    
+    def from_momentum_occupations(self, multi_particle_state, allow_zero=False):
         if not self.check_n_particles(len(multi_particle_state)):
             raise ValueError(
                 f"number of the particle setted in the system({self.n_particles}) and given({len(multi_particle_state)}) are mismatched."
@@ -241,13 +260,58 @@ class PBCBox1D:
         )
 
         if parity == 0:
-            raise ValueError("Pauli Exclusion principle is violated.")
+            if allow_zero:
+                return self.zero_state()
+            else:
+                raise ValueError(f"Pauli Exclusion principle is violated: {multi_particle_state}")
 
         index = self.state_to_index_map_multi[new_multi_particle_state]
         state_vector = np.zeros((self.space_dim,), dtype=np.complex128)
         state_vector[index] = parity
         return state_vector
+    
+    def from_single_states(self, single_states):
+        """
+        single_states: list of (momentum_idx, (alpha, beta))
+        |alpha| ** 2 + |beta| ** 2 = 1
+        """
+        # checking pauli exclusion:
+        memo = {}
+        for midx, (alpha, beta) in single_states:
+            if midx in memo:
+                alpha_prev, beta_prev = memo[midx]
+                dot = np.conj(alpha_prev) * alpha + np.conj(beta_prev) * beta
+                if abs(dot) > 1e-8:
+                    raise ValueError(
+                        f"Pauli Exclusion violated."
+                    )
+            else:
+                memo[midx] = (alpha, beta)
+        
+        n_particles = len(single_states)
+        
+        if not self.check_n_particles(n_particles):
+            raise ValueError(
+                f"number of the particle setted in the system({self.n_particles}) and given({len(single_states)}) are mismatched."
+            )
+        momentum_modes = [n for n, _ in single_states]
+        amps = np.array([[alpha, beta] for _, (alpha, beta) in single_states])
+        state_vector = self.zero_state()
+        for spin_config in itertools.product([0, 1], repeat=n_particles):
+            amp = np.prod([amps[i, s] for i, s in enumerate(spin_config)])
+            basis_config = tuple(
+                (mode, 1 - 2 * spin) for mode, spin in zip(momentum_modes, spin_config)
+            )
+            basis = self.from_momentum_occupations(basis_config, allow_zero=True)
+            state_vector = state_vector + amp * basis
+        return state_vector
 
+    def from_max_particle_sector(self, psi):
+        state_vector = self.zero_state()
+        max_particle_sector_dim = math.comb(self.num_single_particle_states, self.max_n_particles)
+        state_vector[-max_particle_sector_dim:] = psi
+        return state_vector
+    
     def get_momentum_eigenstate(self, multi_particle_state):
         return self.from_momentum_occupations(multi_particle_state)
 

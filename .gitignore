@@ -1,5 +1,5 @@
 data/
-!data/experiment/
+~data/experiment/
 visualizations/
 figures/    
 **/__pycache__
