@@ -44,7 +44,7 @@ parser.add_argument('--group_name', type=str, default="temp")
 parser.add_argument('--run_name', type=str, help='Root directory for data and figures')
 parser.add_argument('--nh', action='store_true', help='Use Non-Hermitian Hamiltonian instead of Lindblad operators')
 parser.add_argument('--initial_state', type=str, required=True, help='initial state for simulation.', choices=[
-    'aligned_up', 'mixture', 'superposition', 'soc_ground'
+    'aligned_up', 'mixture', 'superposition', 'soc_ground', 'custom'
 ])
 parser.add_argument('--theta', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
 parser.add_argument('--phi', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
@@ -293,7 +293,15 @@ match (args.initial_state):
             Z_truncated = np.sum(boltz_truncated)
             boltz_truncated /= Z_truncated
             boltz_logits = -spectrum[:n_lows] / temperature
-        
+    case "custom":
+        allowed_momentum_modes = [6, 7, 8, 9, 10, 11]
+        spectrum, lowlyings = ybsoc.manybody_spectrum(
+            max_par_sub_hilb,
+            hbar, k_r, m_Yb, delta, omega_R,
+            allowed_momentum_modes
+        )
+        ss = next(iter(lowlyings))
+        initial_state = hilb.from_single_states(ss)
     case _:
         raise ValueError(f"invalid initial state type: {args.initial_state}")
 
@@ -323,6 +331,8 @@ match (args.initial_state):
 # def sample_from_boltzmann(n_samples, lowlyings, boltzmann_logits, key):
 #     indices = jax.random.categorical(key, boltzmann_logits, shape=(n_samples,))
 #     return lowlyings[:, indices]
+
+print(initial_state.shape)
 
 # operators
 print("constructing operators...")
@@ -490,7 +500,7 @@ for i_batch in range(num_batches):
             n_loss_channels=n_loss_channels,
             loss_op_rank=subspace_dim,
             T2=T2,
-            key=subkey
+            key=subkey  
         )
         # psi_batched.block_until_ready()
         # print("qjm step", time.time() - start)

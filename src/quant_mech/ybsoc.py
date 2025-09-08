@@ -51,38 +51,47 @@ def beta(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
     return jnp.sin(theta(q_x, m_Yb, k_r, delta, omega_R, hbar))
 
 def soc_spectrum(
-    hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float
+    hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float,
+    allowed_momentum_modes: list[int] | None = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     if not isinstance(hilb.n_particles, int):
         raise ValueError(f"Hilber space must be an sector that particle number is fixed. but {hilb.n_particles=}")
     
     single_spectrum = []
     single_states = []
-    full_momentum_modes = []
+    momentum_modes = []
     
-    for mode_idx, q_x in enumerate(hilb.momentums):
+    
+    full_momentums = hilb.momentums
+    
+    if allowed_momentum_modes is None:
+        idx_and_q_x = enumerate(full_momentums)
+    else:
+        idx_and_q_x = ((idx, full_momentums[idx]) for idx in allowed_momentum_modes)
+    
+    for mode_idx, q_x in idx_and_q_x:
         _e1 = e1(q_x, m_Yb, k_r, delta, omega_R, hbar)
         _e2 = e2(q_x, m_Yb, k_r, delta, omega_R, hbar)
         _alpha = alpha(q_x, m_Yb, k_r, delta, omega_R, hbar)
         _beta = beta(q_x, m_Yb, k_r, delta, omega_R, hbar)
         
         single_spectrum.append(_e1)
-        full_momentum_modes.append(mode_idx)
+        momentum_modes.append(mode_idx)
         single_states.append([_alpha, _beta])
         single_spectrum.append(_e2)
-        full_momentum_modes.append(mode_idx)
+        momentum_modes.append(mode_idx)
         single_states.append([-_beta, _alpha])
     
     single_spectrum = np.array(single_spectrum)
-    full_momentum_modes = np.array(full_momentum_modes)
+    momentum_modes = np.array(momentum_modes)
     single_states = np.array(single_states)
 
     sorted_idx = np.argsort(single_spectrum)
     single_spectrum = single_spectrum[sorted_idx]
-    full_momentum_modes = full_momentum_modes[sorted_idx]
+    momentum_modes = momentum_modes[sorted_idx]
     single_states = single_states[sorted_idx]
     
-    return single_spectrum, full_momentum_modes, single_states
+    return single_spectrum, momentum_modes, single_states
     
 def single_to_multi_spectrum(
     single_spectrum: np.ndarray, n_particles
@@ -98,14 +107,15 @@ def single_to_multi_spectrum(
     return multi_spectrum, idx_combinations
 
 def manybody_spectrum(
-    hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float
+    hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float,
+    allowed_momentum_modes: list[int] | None = None
 ):
-    single_spectrum, full_momentum_modes, single_states = soc_spectrum(hilb, hbar, k_r, m_Yb, delta, omega_R)
+    single_spectrum, momentum_modes, single_states = soc_spectrum(hilb, hbar, k_r, m_Yb, delta, omega_R, allowed_momentum_modes=allowed_momentum_modes)
     multi_spectrum, idx_combinations = single_to_multi_spectrum(single_spectrum, hilb.n_particles)
-    assert single_spectrum.shape[0] == hilb.num_single_particle_states
-    assert idx_combinations.shape[0] == hilb.num_multi_particle_states
+    # assert single_spectrum.shape[0] == hilb.num_single_particle_states
+    # assert idx_combinations.shape[0] == hilb.num_multi_particle_states
     
-    lowlyings = ([(int(m), alphabeta) for m, alphabeta in zip(full_momentum_modes[ii], single_states[ii])]
+    lowlyings = ([(int(m), alphabeta) for m, alphabeta in zip(momentum_modes[ii], single_states[ii])]
                   for ii in idx_combinations)
     
     return multi_spectrum, lowlyings
