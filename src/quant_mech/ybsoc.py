@@ -11,13 +11,13 @@ from .utils import sorted_multi_particle_state
 
 
 def trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
-    E_r = (hbar * k_r) ** 2 / (2 * m_Yb)
+    E_r = (hbar * 1.0) ** 2 / (2 * m_Yb)
     return ((hbar ** 2) / (2 * m_Yb)) * (
         (q_x - k_r) ** 2 + (q_x + k_r) ** 2
     ) / E_r
 
 def delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
-    E_r = (hbar * k_r) ** 2 / (2 * m_Yb)
+    E_r = (hbar * 1.0) ** 2 / (2 * m_Yb)
     return ((hbar ** 2) / (2 * m_Yb)) * (
         (q_x - k_r) ** 2 - (q_x + k_r) ** 2
     ) / E_r + delta
@@ -127,6 +127,9 @@ def coo_kinetic_term(
     data = []
     rows = []
     cols = []
+    
+    E_r = (hbar * 1.0) ** 2 / (2 * m_Yb) # 
+    
     for state_index, multi_particle_state in enumerate(hilb.multi_particle_states):
         i = 0
         N = len(multi_particle_state)
@@ -138,7 +141,7 @@ def coo_kinetic_term(
                 # if state contains c_up(k) and c_down(k) both
                 diag_val += ((hbar**2) / (2 * m_Yb)) * (
                     (q_x - k_r) ** 2 + (q_x + k_r) ** 2
-                )
+                ) / E_r
                 i += 2
             else:
                 # state contains either c_up(k) or c_down(k), but not both.
@@ -150,7 +153,7 @@ def coo_kinetic_term(
                 # diagonal term
                 diag_val += ((hbar**2) / (2 * m_Yb)) * (
                     (q_x - spin * k_r) ** 2
-                ) + spin * delta / 2
+                ) / E_r + spin * delta / 2
 
                 # off-diagonal term
                 val = omega_R / 2

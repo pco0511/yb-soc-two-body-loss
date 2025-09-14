@@ -17,17 +17,17 @@ def make_command(
     *,  
     python_file_name: str="src/qjm_lindblad_base.py",
     group_name: str="temp",
-    run_name_prefix: str="fig3mixture",
+    run_name_prefix: str="fig3superposition",
     initial_state: str="mixture",
     theta: float=0.0,
     phi: float=0.0,
     n_momentum_points: int=13,
     n_particles: int=6,
-    n_savesteps: int=51,
+    n_savesteps: int=76,
     jumps_per_step: int=4,
-    gamma: float=0.38,
+    gamma: float=1.0,
     T2: float=1.25,
-    sim_time: float=2.0,
+    sim_time: float=3.0,
     nh: bool=False,
     seed: int=0
 ):
@@ -55,6 +55,6 @@ for n in n_pars:
     prob_up = 1 - 0.31844
     theta = 2 * np.arccos(np.sqrt(prob_up))  # p(up) = 2/3, p(down) = 1/3
     phi = 0
-    comm = make_command(n_particles=n, group_name="fig3b/param_search", initial_state="superposition", theta=theta, phi=phi, nh=True)
+    comm = make_command(n_particles=n, group_name="fig3a/", initial_state="superposition", theta=theta, phi=phi, nh=True)
     print(f"running simulation: {n=}")
     subprocess.run(comm, check=True)
