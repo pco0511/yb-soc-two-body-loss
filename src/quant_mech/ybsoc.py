@@ -11,14 +11,16 @@ from .utils import sorted_multi_particle_state
 
 
 def trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    E_r = (hbar * k_r) ** 2 / (2 * m_Yb)
     return ((hbar ** 2) / (2 * m_Yb)) * (
         (q_x - k_r) ** 2 + (q_x + k_r) ** 2
-    )
+    ) / E_r
 
 def delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+    E_r = (hbar * k_r) ** 2 / (2 * m_Yb)
     return ((hbar ** 2) / (2 * m_Yb)) * (
         (q_x - k_r) ** 2 - (q_x + k_r) ** 2
-    ) + delta
+    ) / E_r + delta
 
 def e1(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
     tr = trace_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
@@ -30,25 +32,22 @@ def e2(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
     de = delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
     return (tr - jnp.sqrt(de ** 2 + omega_R**2)) / 2
 
-def theta(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
+def theta(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0, eps=1e-12):
     de = delta_e(q_x, m_Yb, k_r, delta, omega_R, hbar)
-    assert omega_R >= 0
+    assert np.all(omega_R >= 0)
     
-    if omega_R == 0.0:
-        return 0.0
+    theta_val = 0.5 * np.arctan2(omega_R, de)
     
-    if -1e-12 < de <= 0:
-        return -np.pi / 4
-    elif 0 <= de < 1e-12:
-        return np.pi / 4
-        
-    return (1 / 2) * jnp.arctan(omega_R / de)
-
+    mask = (np.abs(de) <= eps) & (np.abs(omega_R) <= eps)
+    if np.any(mask):
+        theta_val = np.where(mask, 0.0, theta_val)
+    return theta_val
+    
 def alpha(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
-    return jnp.cos(theta(q_x, m_Yb, k_r, delta, omega_R, hbar))
+    return np.cos(theta(q_x, m_Yb, k_r, delta, omega_R, hbar))
 
 def beta(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
-    return jnp.sin(theta(q_x, m_Yb, k_r, delta, omega_R, hbar))
+    return np.sin(theta(q_x, m_Yb, k_r, delta, omega_R, hbar))
 
 def soc_spectrum(
     hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float
