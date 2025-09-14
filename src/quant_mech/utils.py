@@ -45,7 +45,7 @@ def format_size(size_in_bytes):
 
 def print_multi_particle_states_info(multi_particle_states):
 
-    num_particles = len(multi_particle_states[0])
+    num_particles = len(multi_particle_states[-1])
     print(f"{len(multi_particle_states)} {num_particles}-particle states")
     print(f"{format_size(len(multi_particle_states) * 16)} per state (complex128)")
     print(

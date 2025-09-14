@@ -44,7 +44,7 @@ parser.add_argument('--group_name', type=str, default="temp")
 parser.add_argument('--run_name', type=str, help='Root directory for data and figures')
 parser.add_argument('--nh', action='store_true', help='Use Non-Hermitian Hamiltonian instead of Lindblad operators')
 parser.add_argument('--initial_state', type=str, required=True, help='initial state for simulation.', choices=[
-    'aligned_up', 'mixture', 'superposition', 'soc_ground'
+    'aligned_up', 'mixture', 'superposition', 'soc_ground', 'custom'
 ])
 parser.add_argument('--theta', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
 parser.add_argument('--phi', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
@@ -58,7 +58,7 @@ parser.add_argument('--gamma', type=float, default=0.4, help='2-body dissipation
 parser.add_argument('--T2', type=float, default=1.0, help='T2 decoherence')
 parser.add_argument('--temperature', type=float, help="Temperature in micro Kelvin. Only works in initial_state=soc_ground. If not given, it is treated as zero temperature.")
 parser.add_argument('--sim_time', type=float, default=1.0, help='simulation time in mili second')
-parser.add_argument('--seed', type=int, help='Random seed if not given, the timestamp will be used.')
+parser.add_argument('--seed', type=int, default=0, help='Random seed')
 
 args = parser.parse_args()
 
@@ -88,12 +88,7 @@ figs_dir = os.path.join(DATA_ROOT, "figs")
 print(f"saving data to: {DATA_ROOT}")
 
 NH = args.nh
-if args.seed is not None:
-    seed = args.seed
-else:
-    seed = int(time.time())
-    
-key = jax.random.key(seed)
+key = jax.random.key(args.seed)
 
 os.makedirs(data_dir, exist_ok=True)
 os.makedirs(figs_dir, exist_ok=True)
@@ -196,7 +191,7 @@ parameters_json = json.dumps(
             "num_batches": num_batches,
             "total_n_steps": total_n_steps,
             "delta_t": delta_t,
-            "seed": seed
+            "seed": args.seed
         }
     },
     indent=4
@@ -298,7 +293,15 @@ match (args.initial_state):
             Z_truncated = np.sum(boltz_truncated)
             boltz_truncated /= Z_truncated
             boltz_logits = -spectrum[:n_lows] / temperature
-        
+    case "custom":
+        allowed_momentum_modes = [6, 7, 8, 9, 10, 11]
+        spectrum, lowlyings = ybsoc.manybody_spectrum(
+            max_par_sub_hilb,
+            hbar, k_r, m_Yb, delta, omega_R,
+            allowed_momentum_modes
+        )
+        ss = next(iter(lowlyings))
+        initial_state = hilb.from_single_states(ss)
     case _:
         raise ValueError(f"invalid initial state type: {args.initial_state}")
 
