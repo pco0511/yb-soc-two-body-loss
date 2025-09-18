@@ -308,7 +308,7 @@ match (args.initial_state):
         spectrum, lowlyings = ybsoc.manybody_spectrum(
             max_par_sub_hilb,
             hbar, k_r, m_Yb, delta, omega_R,
-            allowed_momentum_modes
+            allowed_momentum_modes, lower_only=True
         )
         ss = next(iter(lowlyings))
         initial_state = hilb.from_single_states(ss)

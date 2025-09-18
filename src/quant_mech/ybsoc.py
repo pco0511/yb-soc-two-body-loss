@@ -52,7 +52,7 @@ def beta(q_x, m_Yb, k_r, delta, omega_R, hbar=1.0):
 
 def soc_spectrum(
     hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float,
-    allowed_momentum_modes: list[int] | None = None
+    allowed_momentum_modes: list[int] | None=None, lower_only: bool=False
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     if not isinstance(hilb.n_particles, int):
         raise ValueError(f"Hilber space must be an sector that particle number is fixed. but {hilb.n_particles=}")
@@ -74,10 +74,10 @@ def soc_spectrum(
         _e2 = e2(q_x, m_Yb, k_r, delta, omega_R, hbar)
         _alpha = alpha(q_x, m_Yb, k_r, delta, omega_R, hbar)
         _beta = beta(q_x, m_Yb, k_r, delta, omega_R, hbar)
-        
-        single_spectrum.append(_e1)
-        momentum_modes.append(mode_idx)
-        single_states.append([_alpha, _beta])
+        if not lower_only:
+            single_spectrum.append(_e1)
+            momentum_modes.append(mode_idx)
+            single_states.append([_alpha, _beta])
         single_spectrum.append(_e2)
         momentum_modes.append(mode_idx)
         single_states.append([-_beta, _alpha])
@@ -108,9 +108,9 @@ def single_to_multi_spectrum(
 
 def manybody_spectrum(
     hilb: PBCBox1D, hbar: float, k_r: float, m_Yb: float, delta: float, omega_R: float,
-    allowed_momentum_modes: list[int] | None = None
+    allowed_momentum_modes: list[int] | None=None, lower_only: bool=False
 ):
-    single_spectrum, momentum_modes, single_states = soc_spectrum(hilb, hbar, k_r, m_Yb, delta, omega_R, allowed_momentum_modes=allowed_momentum_modes)
+    single_spectrum, momentum_modes, single_states = soc_spectrum(hilb, hbar, k_r, m_Yb, delta, omega_R, allowed_momentum_modes=allowed_momentum_modes, lower_only=lower_only)
     multi_spectrum, idx_combinations = single_to_multi_spectrum(single_spectrum, hilb.n_particles)
     # assert single_spectrum.shape[0] == hilb.num_single_particle_states
     # assert idx_combinations.shape[0] == hilb.num_multi_particle_states

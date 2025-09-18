@@ -1,0 +1,83 @@
+import subprocess
+
+commands = [
+    [
+        'uv',
+        'run',
+        'src/qjm_lindblad_base.py',
+        '--group_name',
+        'E_r_fixed',
+        '--run_name',
+        '_{default}',
+        '--initial_state',
+        'custom',
+        '--theta',
+        '0.0000',
+        '--phi',
+        '0.0000',
+        '--n_momentum_points',
+        '13',
+        '--n_particles',
+        '6',
+        '--n_savesteps',
+        '51',
+        '--n_trajectories',
+        '512',
+        '--batch_size',
+        '64',
+        '--jumps_per_step',
+        '4',
+        '--gamma',
+        '0.3800',
+        '--T2',
+        '1.2500',
+        '--sim_time',
+        '2.0000',
+        '--seed',
+        '0',
+        '--nh'
+    ],
+    [
+        'uv',
+        'run',
+        'src/qjm_lindblad_base.py',
+        '--group_name',
+        'E_r_fixed',
+        '--run_name',
+        '_{default}',
+        '--initial_state',
+        'custom',
+        '--theta',
+        '0.0000',
+        '--phi',
+        '0.0000',
+        '--n_momentum_points',
+        '13',
+        '--n_particles',
+        '7',
+        '--n_savesteps',
+        '51',
+        '--n_trajectories',
+        '512',
+        '--batch_size',
+        '64',
+        '--jumps_per_step',
+        '4',
+        '--gamma',
+        '0.3800',
+        '--T2',
+        '1.2500',
+        '--sim_time',
+        '2.0000',
+        '--seed',
+        '0',
+        '--nh'
+    ],
+]
+
+cnt = 0
+for comm in commands:
+    if cnt == 0:
+        cnt += 1
+        continue
+    subprocess.run(comm, check=True)
