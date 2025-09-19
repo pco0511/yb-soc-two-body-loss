@@ -479,12 +479,12 @@ if not zerotemp:
     boltz_logits_jaxcpu = jnp.array(boltz_logits, device=cpu_device)
 
     @partial(jax.jit, static_argnums=(3))
-    def sample_from_boltzmann(key, initial_states, boltz_logits, batch_size):
+    def sample_from_boltzmann_cpu(key, initial_states, boltz_logits, batch_size):
         indices = jax.random.categorical(key, boltz_logits, shape=(batch_size,))
         psis = initial_states[indices]
         psis = rearrange(psis, "b n -> n b")
-        return jax.device_put(psis, device=gpu_device)
-
+        return psis
+    
 # qjm iterations
 for i_batch in range(num_batches):
     if zerotemp:
@@ -492,8 +492,9 @@ for i_batch in range(num_batches):
         psi_batched = jnp.array(psi_batched, dtype=np.complex128) # convert to jax array
     else:
         key, subkey = jax.random.split(key)
-        psi_batched = sample_from_boltzmann(subkey, initial_states_jaxcpu, boltz_logits_jaxcpu, batch_size)
-
+        psi_batched_cpu = sample_from_boltzmann_cpu(subkey, initial_states_jaxcpu, boltz_logits_jaxcpu, batch_size)
+        psi_batched = jax.device_put(psi_batched_cpu, device=gpu_device)
+    print(f"{psi_batched.device=}")
     for iteration in tqdm.trange(total_n_steps, desc=f"batch {i_batch}: {(i_batch+1) * batch_size}/{n_trajectories} Trajectories", leave=False):
         # start = time.time()
         key, subkey = jax.random.split(key)
