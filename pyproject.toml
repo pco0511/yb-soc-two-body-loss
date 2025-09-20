@@ -1,0 +1,13 @@
+[project]
+name = "yb-soc-two-body-loss"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "einops>=0.8.1",
+    "jax[cuda12]>=0.7.2",
+    "jaxtyping>=0.3.2",
+    "matplotlib>=3.10.6",
+    "tqdm>=4.67.1",
+]
