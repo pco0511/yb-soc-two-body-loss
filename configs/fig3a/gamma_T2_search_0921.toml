@@ -1,0 +1,69 @@
+[default]
+python_file_name = "src//qjm_lindblad_base.py"
+group_name = "fig3a0921"
+run_name = "{timestamp}"
+nh = true
+initial_state = "superposition"
+theta = 1.1991820441461538
+phi = 0.0
+n_momentum_points = 13
+n_particles = 6
+n_savesteps = 101
+n_trajectories = 512
+batch_size = 64
+jumps_per_step = 4
+gamma = 0.36
+T2 = 1.0
+temperature = 0.0
+sim_time = 4.0
+seed = 0
+
+[[simulations]]
+run_name = "highdeco_0_{timestamp}"
+gamma = 0.3
+T2 = 0.5
+
+[[simulations]]
+run_name = "highdeco_1_{timestamp}"
+gamma = 0.45
+T2 = 0.5
+
+[[simulations]]
+run_name = "highdeco_2_{timestamp}"
+gamma = 0.75
+T2 = 0.5
+
+[[simulations]]
+run_name = "highdeco_3_{timestamp}"
+gamma = 1.0
+T2 = 0.5
+
+[[simulations]]
+run_name = "highdeco_4_{timestamp}"
+gamma = 2.0
+T2 = 0.5
+
+[[simulations]]
+run_name = "lowdeco_0_{timestamp}"
+gamma = 0.3
+T2 = 2.0
+
+[[simulations]]
+run_name = "lowdeco_1_{timestamp}"
+gamma = 0.45
+T2 = 2.0
+
+[[simulations]]
+run_name = "lowdeco_2_{timestamp}"
+gamma = 0.75
+T2 = 2.0
+
+[[simulations]]
+run_name = "lowdeco_3_{timestamp}"
+gamma = 1.0
+T2 = 2.0
+
+[[simulations]]
+run_name = "lowdeco_4_{timestamp}"
+gamma = 2.0
+T2 = 2.0

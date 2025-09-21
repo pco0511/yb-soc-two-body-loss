@@ -3,8 +3,8 @@ import subprocess
 import itertools
 
 temperatures = [
-    0.025,
-    0.05,
+    # 0.025,
+    # 0.05,
     0.1,
     0.25,
     0.5
@@ -15,7 +15,7 @@ print(temperatures)
 def make_command(
     *,
     python_file_name: str="src/qjm_lindblad_base.py",
-    group_name: str="fig4c0919",
+    group_name: str="fig4c0920",
     run_name_prefix: str="temp",
     nh: bool=True,
     initial_state: str="soc_ground",

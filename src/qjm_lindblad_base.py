@@ -74,10 +74,9 @@ else:
         
 # Use parsed arguments
 if args.run_name:
-    if "{default}" in args.run_name:
-        RUN_NAME = args.run_name.replace("{default}", DEFAULT_NAME)
-    else:
-        RUN_NAME = args.run_name
+    RUN_NAME = args.run_name
+    RUN_NAME = RUN_NAME.replace("{default}", DEFAULT_NAME)
+    RUN_NAME = RUN_NAME.replace("{timestamp}", CURRENT_TIME_STAMP)
 else:
     RUN_NAME = DEFAULT_NAME
     
@@ -128,9 +127,10 @@ T2 = args.T2 / t_r
 
 if args.temperature is not None:
     temperature = args.temperature / T_r
-    zerotemp = False
 else:
     temperature = 0.0
+    
+if temperature == 0.0:
     zerotemp = True
     
 # figure options
@@ -494,7 +494,6 @@ for i_batch in range(num_batches):
         key, subkey = jax.random.split(key)
         psi_batched_cpu = sample_from_boltzmann_cpu(subkey, initial_states_jaxcpu, boltz_logits_jaxcpu, batch_size)
         psi_batched = jax.device_put(psi_batched_cpu, device=gpu_device)
-    print(f"{psi_batched.device=}")
     for iteration in tqdm.trange(total_n_steps, desc=f"batch {i_batch}: {(i_batch+1) * batch_size}/{n_trajectories} Trajectories", leave=False):
         # start = time.time()
         key, subkey = jax.random.split(key)

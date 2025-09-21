@@ -1,83 +1,114 @@
-# import os
 import subprocess
-# import itertools
-# gamma_T2s = [
-    # (0.1, 0.8),
-    # (0.25, 0.8),
-    # (0.4, 0.8),
-    # (0.7, 0.8),
-    # (1.0, 0.8),
-    # (2.0, 0.8)
-# ]
+import tomllib
+import argparse
+import time
 
-gamma_T2s = [
-    (0.25, 1.0),
-    (0.25, 2.0),
-    (0.25, 4.0),
-    (0.25, 10.0),
-    (0.25, 20.0),
-    (0.25, 50.0)
-]
-
-# gamma_T2s = [
-#     (0.25, 1e8),
-#     (0.40, 1e8),
-#     (0.7, 1e8),
-#     (1.0, 1e8),
-#     (2.0, 1e8)
-# ]
-
-# gammas = [
-#     0.3,
-#     0.4,
-#     0.5
-# ]
-# T2s = [
-#     0.8,
-#     1.5,
-#     1e8
-# ]
-
-# gamma_T2s = [
-#     (gamma, T2) for gamma, T2 in itertools.product(gammas, T2s)
-# ]
-
-print(gamma_T2s)
+def format_time(seconds: float) -> str:
+    mins, secs = divmod(seconds, 60)
+    hours, mins = divmod(mins, 60)
+    if hours > 0:
+        return f"{int(hours)}h {int(mins)}m {secs:.2f}s"
+    elif mins > 0:
+        return f"{int(mins)}m {secs:.2f}s"
+    else:
+        return f"{secs:.2f}s"
 
 def make_command(
     *,
-    python_file_name: str="src/qjm_lindblad_base.py",
-    group_name: str="temp",
-    run_name_prefix: str="fig3mixture",
-    initial_state: str="soc_ground",
-    n_momentum_points: int=13,
-    n_particles: int=6,
-    n_savesteps: int=61,
-    gamma: float=0.4,
-    T2: float=0.8,
-    sim_time: float=3.0,
-    nh: bool=False,
-    seed: int=0
+    python_file_name: str,
+    group_name: str,
+    run_name: str,
+    nh: bool,
+    initial_state: str,
+    theta: float,
+    phi: float,
+    n_momentum_points: int,
+    n_particles: int,
+    n_savesteps: int,
+    n_trajectories: int,
+    batch_size: int,
+    jumps_per_step: int,
+    gamma: float,
+    T2: float,
+    temperature: None | float,
+    sim_time: float,
+    seed: int
 ):
     commands = [
         "uv", "run", python_file_name, 
         "--group_name", group_name,
-        "--run_name", f"{run_name_prefix}_{{default}}", 
+        "--run_name", f"{run_name}_{{default}}", 
         "--initial_state", initial_state,
+        "--theta", f"{theta:.8f}",
+        "--phi", f"{phi:.8f}",
         "--n_momentum_points", f"{n_momentum_points}", 
         "--n_particles", f"{n_particles}", 
-        "--n_savesteps", f"{n_savesteps}", 
-        # "--jumps_per_step", "4",
-        "--gamma", f"{gamma:.4f}",
-        "--T2", f"{T2:.4f}",
-        "--sim_time", f"{sim_time:.4f}",
+        "--n_savesteps", f"{n_savesteps}",
+        "--n_trajectories", f"{n_trajectories}",
+        "--batch_size", f"{batch_size}",
+        "--jumps_per_step", f"{jumps_per_step}",
+        "--gamma", f"{gamma:.8f}",
+        "--T2", f"{T2:.8f}",
+        "--sim_time", f"{sim_time:.8f}",
         "--seed", f"{seed}"
     ]
     if nh:
         commands.append("--nh")
+    if temperature is not None:
+        commands.extend(["--temperature", f"{temperature:.4f}"])
     return commands
 
-for idx, (gamma, T2) in enumerate(gamma_T2s):
-    comm = make_command(gamma=gamma, T2=T2, group_name="fig4c/param_search", run_name_prefix=f"sim_{idx}", nh=True)
-    print(f"running simulation for: {gamma=}, {T2=}")
-    subprocess.run(comm, check=True)
+def main():
+    parser = argparse.ArgumentParser(description="Run simulations from a TOML configuration file.")
+    parser.add_argument("--config", help="Path to the TOML configuration file.")
+    args = parser.parse_args()
+    
+    with open(args.config, "rb") as f:
+        config = tomllib.load(f)
+
+    default_params = config.get('default', {})
+    simulations = config.get('simulations', [])
+    
+    print(f"running total {len(simulations)} simulations.")
+
+    total_start_time = time.monotonic()
+    
+    for i, sim_specific_params in enumerate(simulations):
+        print(f"\n---  {i+1}/{len(simulations)}  ---")
+        
+        final_params = default_params.copy()
+        final_params.update(sim_specific_params)
+        
+        print("   [parameters]")
+        for key, val in sim_specific_params.items():
+            print(f"     - {key}: {val} (overrided)")
+        
+        sim_start_time = time.monotonic()
+        
+        try:
+            comm = make_command(**final_params)
+            subprocess.run(comm, check=True)
+            
+            sim_end_time = time.monotonic()
+            sim_duration = sim_end_time - sim_start_time
+            
+            print(f"--- simulation {i+1} succeed (took {format_time(sim_duration)}) ---")
+        except TypeError as e:
+            print(f"--- configuration error ---")
+            print(e)
+            break
+        except subprocess.CalledProcessError as e:
+            sim_end_time = time.monotonic()
+            sim_duration = sim_end_time - sim_start_time
+            print(f"--- Simulation {i+1} failed (after {format_time(sim_duration)}) ---")
+            print(e)
+            break
+    
+    total_end_time = time.monotonic()
+    total_duration = total_end_time - total_start_time
+    print("\n==========================================")
+    print(f"All simulations finished. Total time: {format_time(total_duration)}")
+    print("==========================================")
+
+if __name__ == "__main__":
+    main()
