@@ -48,6 +48,7 @@ parser.add_argument('--initial_state', type=str, required=True, help='initial st
 ])
 parser.add_argument('--theta', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
 parser.add_argument('--phi', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
+parser.add_argument('--k0', type=float, default=0.0, help='change between momentum modes')
 parser.add_argument('--n_momentum_points', type=int, required=True, help='Number of momentum points')
 parser.add_argument('--n_particles', type=int, required=True, help='Number of particles')
 parser.add_argument('--n_savesteps', type=int, default=51, help='Number of time steps to save')
@@ -119,7 +120,7 @@ k_r = 1.0
 delta = 4.0
 omega_R = 3.5
 
-k0 = 0.5
+k0 = args.k0
 L = 2 * np.pi / k0
 gamma = args.gamma
 

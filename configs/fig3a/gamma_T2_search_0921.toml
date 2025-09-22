@@ -6,6 +6,7 @@ nh = true
 initial_state = "superposition"
 theta = 1.1991820441461538
 phi = 0.0
+k0 = 0.5
 n_momentum_points = 13
 n_particles = 6
 n_savesteps = 101
