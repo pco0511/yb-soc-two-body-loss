@@ -1,13 +1,13 @@
 [default]
 python_file_name = "src//qjm_lindblad_base.py"
-group_name = "fig4c0922"
+group_name = "fig4c0923_near_kr"
 run_name = "{timestamp}"
 nh = true
-initial_state = "soc_ground"
+initial_state = "custom"
 theta = 0.0
 phi = 0.0
-k0 = 1.0
-n_momentum_points = 11
+k0 = 0.5
+n_momentum_points = 13
 n_particles = 6
 n_savesteps = 101
 n_trajectories = 512
@@ -25,16 +25,8 @@ T2 = 0.2
 
 [[simulations]]
 run_name = "sim1_{timestamp}"
-T2 = 0.5
+T2 = 0.8
 
 [[simulations]]
 run_name = "sim2_{timestamp}"
-T2 = 1.0
-
-[[simulations]]
-run_name = "sim3_{timestamp}"
-T2 = 2.0
-
-[[simulations]]
-run_name = "sim4_{timestamp}"
 T2 = 1000000.0
