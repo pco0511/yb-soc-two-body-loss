@@ -228,6 +228,8 @@ momentum_modes = tuple(np.argsort(ks ** 2)[:n_particles].tolist())
 
 print(f"constructing initial state: {args.initial_state}")
 
+recalucate_initial_nums = False
+
 match (args.initial_state):
     case "aligned_up":
         initial_state = hilb.get_momentum_eigenstate(
@@ -299,6 +301,7 @@ match (args.initial_state):
             Z_truncated = np.sum(boltz_truncated)
             boltz_truncated /= Z_truncated
             boltz_logits = -spectrum[:n_lows] / temperature
+            recalucate_initial_nums = True
     case "custom":
         if n_particles == 6:
             allowed_momentum_modes = [6, 7, 8, 9, 10, 11]
@@ -313,6 +316,8 @@ match (args.initial_state):
         )
         ss = next(iter(lowlyings))
         initial_state = hilb.from_single_states(ss)
+    case "fermi":
+        raise NotImplementedError("fermi sea initial state is not implemented yet.")
     case _:
         raise ValueError(f"invalid initial state type: {args.initial_state}")
 
