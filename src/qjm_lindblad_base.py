@@ -44,7 +44,7 @@ parser.add_argument('--group_name', type=str, default="temp")
 parser.add_argument('--run_name', type=str, help='Root directory for data and figures')
 parser.add_argument('--nh', action='store_true', help='Use Non-Hermitian Hamiltonian instead of Lindblad operators')
 parser.add_argument('--initial_state', type=str, required=True, help='initial state for simulation.', choices=[
-    'aligned_up', 'mixture', 'superposition', 'soc_ground', 'soc_lower', 'custom'
+    'aligned_up', 'mixture', 'superposition', 'soc_ground', 'soc_lower', 'soc_lower', 'custom'
 ])
 parser.add_argument('--theta', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
 parser.add_argument('--phi', type=float, default=0.0, help='parameter for super position: \\cos(\\theta/2)\\ket{0} + e^{i\\phi}\\sin(\\theta/2)\\ket{1}')
