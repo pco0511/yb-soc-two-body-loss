@@ -1,9 +1,9 @@
 [default]
 python_file_name = "src//qjm_lindblad_base.py"
-group_name = "fig4c0924_fermi"
+group_name = "fig4c0925_fermi_lower"
 run_name = "{timestamp}"
 nh = true
-initial_state = "soc_ground"
+initial_state = "soc_lower"
 theta = 0.0
 phi = 0.0
 k0 = 1.0
