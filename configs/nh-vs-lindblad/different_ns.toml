@@ -1,0 +1,44 @@
+[default]
+python_file_name = "src//qjm_lindblad_base.py"
+group_name = "nh-vs-lindblad"
+run_name = "{timestamp}"
+nh = true
+initial_state = "mixture"
+theta = 0.0
+phi = 0.0
+k0 = 0.5
+n_momentum_points = 13
+n_particles = 6
+n_savesteps = 101
+n_trajectories = 512
+batch_size = 64
+jumps_per_step = 4
+gamma = 0.32
+T2 = 1000000.0
+temperature = 0.0
+sim_time = 4.0
+seed = 0
+
+[[simulations]]
+run_name = "2_{timestamp}"
+n_particles = 2
+
+[[simulations]]
+run_name = "3_{timestamp}"
+n_particles = 3
+
+[[simulations]]
+run_name = "4_{timestamp}"
+n_particles = 4
+
+[[simulations]]
+run_name = "5_{timestamp}"
+n_particles = 5
+
+[[simulations]]
+run_name = "6_{timestamp}"
+n_particles = 6
+
+[[simulations]]
+run_name = "7_{timestamp}"
+n_particles = 7

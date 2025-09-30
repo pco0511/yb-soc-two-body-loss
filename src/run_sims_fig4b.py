@@ -13,14 +13,14 @@ def make_command(
     group_name: str="fig4b",
     run_name_prefix: str="",
     nh: bool=True,
-    soc_dir: str="/root/yb-soc-two-body-loss/data/soc_evolutions/13_6_09211930",
+    soc_dir: str="/root/yb-soc-two-body-loss/data/soc_evolutions/13_6_09271734",
     initial_state_index: int=0,
     n_savesteps: int=51,
     n_trajectories: int=512,
     batch_size: int=64,
     jumps_per_step: int=4,
     gamma: float=0.38,
-    T2: float=1.25,
+    T2: float=1000000.0,
     sim_time: float=2.0,
     seed: int=0
 ):
@@ -43,11 +43,9 @@ def make_command(
         commands.append("--nh")
     return commands
 
-skip = 5
+# skip = 5
 
 for i, iidx in enumerate(index_to_load):
-    if i <= 5:
-        continue
     comm = make_command(initial_state_index=iidx, run_name_prefix=f"run_{i}")
     print(f"running simulation: {iidx=}")
     subprocess.run(comm, check=True)

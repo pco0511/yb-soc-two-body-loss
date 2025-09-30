@@ -1,0 +1,65 @@
+[default]
+python_file_name = "src//qjm_lindblad_base.py"
+group_name = "fig4d0926"
+run_name = "{timestamp}"
+nh = true
+initial_state = "soc_lower"
+theta = 0.0
+phi = 0.0
+k0 = 1.0
+n_momentum_points = 11
+n_particles = 7
+n_savesteps = 101
+n_trajectories = 512
+batch_size = 64
+jumps_per_step = 10
+gamma = 0.32
+T2 = 0.8
+temperature = 0.0
+sim_time = 4.0
+seed = 0
+
+[[simulations]]
+run_name = "sim_0_0{timestamp}"
+T2 = 0.4
+gamma = 0.18
+
+[[simulations]]
+run_name = "sim_0_1{timestamp}"
+T2 = 0.4
+gamma = 0.32
+
+[[simulations]]
+run_name = "sim_0_2{timestamp}"
+T2 = 0.4
+gamma = 1.0
+
+[[simulations]]
+run_name = "sim_1_0{timestamp}"
+T2 = 0.8
+gamma = 0.18
+
+[[simulations]]
+run_name = "sim_1_1{timestamp}"
+T2 = 0.8
+gamma = 0.32
+
+[[simulations]]
+run_name = "sim_1_2{timestamp}"
+T2 = 0.8
+gamma = 1.0
+
+[[simulations]]
+run_name = "sim_2_0{timestamp}"
+T2 = 100000.0
+gamma = 0.18
+
+[[simulations]]
+run_name = "sim_2_1{timestamp}"
+T2 = 100000.0
+gamma = 0.32
+
+[[simulations]]
+run_name = "sim_2_2{timestamp}"
+T2 = 100000.0
+gamma = 1.0

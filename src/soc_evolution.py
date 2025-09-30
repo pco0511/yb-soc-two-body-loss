@@ -218,7 +218,7 @@ plot_numbers(
     save_options=save_options
 )
 psi = initial_state
-psis = np.zeros((n_savesteps, hilb_dim))
+psis = np.zeros((n_savesteps, hilb_dim), dtype=np.complex128)
 # time evolutions:
 for save_step in tqdm.trange(n_savesteps):
     psis[save_step, :] = psi
