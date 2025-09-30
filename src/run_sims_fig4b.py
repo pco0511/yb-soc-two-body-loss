@@ -19,7 +19,7 @@ def make_command(
     n_trajectories: int=512,
     batch_size: int=64,
     jumps_per_step: int=4,
-    gamma: float=0.38,
+    gamma: float=0.80,
     T2: float=1000000.0,
     sim_time: float=2.0,
     seed: int=0
